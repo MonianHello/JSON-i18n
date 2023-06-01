@@ -1,0 +1,196 @@
+<html>
+    <style>
+        body {
+            -webkit-user-select: text; /* 启用文本选择 */
+            -moz-user-select: text;
+            -ms-user-select: text;
+            user-select: text;
+        }
+        .scrollable-table {
+            max-height: 400px;
+            overflow: auto;
+        }
+        #headerLeft {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 70%%; /*两个百分号是为了在python读取时转义，没有错*/
+            padding: 10px;
+            background-color: #ffffff;
+            z-index: 9999;
+        }
+    
+        #headerRight {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 30%%;
+            padding: 10px;
+            background-color: #ffffff;
+            z-index: 9999;
+        }
+    
+        #content {
+            padding-top: 60px; /* 调整内容与头部的间距，使内容不被头部遮挡 */
+        }
+    </style>
+    <head>
+        <title>JSON Editor</title>
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+            // 启用文本选择
+            document.body.style.userSelect = 'text';
+            });
+
+            function updateValue(key) {
+                var value = document.getElementById(key).value;
+                document.getElementById('currentValue_' + key).textContent = value;  // 更新新的值列
+                window.pywebview.api.update_value(key, value);
+            }
+
+            
+            function searchDictionary() {
+                var key = document.getElementById('searchKey').value;
+                window.pywebview.api.search_dictionary(key).then(function(response) {
+                    var resultBlock = document.getElementById('resultBlock');
+                    resultBlock.innerHTML = response;
+                    console.log(response);
+                });
+            }
+            function moveValue(id) {
+                var currentValueElement = document.getElementById("currentValue_" + id);
+                var inputValueElement = document.getElementById(id);
+                
+                // 获取当前值和输入框的值
+                var currentValue = currentValueElement.textContent.trim();
+                var inputValue = inputValueElement.value;
+                
+                // 将当前值赋值给输入框
+                inputValueElement.value = currentValue;
+                
+                // 将输入框的值赋值给当前值
+                // currentValueElement.textContent = inputValue;
+            }
+            
+            function replaceValues() {
+                // 获取所有的<tr>元素
+                var tableRows = document.querySelectorAll('#jsonlist tbody tr');
+
+                // 遍历每一行
+                for (var i = 0; i < tableRows.length; i++) {
+                var row = tableRows[i];
+                
+                // 获取<td>元素
+                var tds = row.getElementsByTagName('td');
+                
+                // 获取当前值和输入框的引用
+                var currentValue = tds[2].innerHTML;
+                var inputField = tds[1].getElementsByTagName('input')[0];
+                
+                // 将当前值赋给输入框的value属性
+                var temp = currentValue;
+                currentValue = inputField.value;
+                inputField.value = temp;
+                
+                // 将文本内容进行调换
+                tds[2].innerHTML = currentValue;
+  
+                // 打印元素内容
+                console.log(temp,currentValue);
+
+                }
+            }
+
+            function output() {
+                // 创建空对象
+                var jsonOutput = {};
+
+                // 获取所有的<tr>元素
+                var tableRows = document.querySelectorAll('#jsonlist tbody tr');
+
+                // 遍历每一行
+                for (var i = 0; i < tableRows.length; i++) {
+                var row = tableRows[i];
+                
+                // 获取<td>元素
+                var tds = row.getElementsByTagName('td');
+                
+                // 获取键和输入框的值
+                var key = tds[0].innerHTML;
+                var value = tds[1].getElementsByTagName('input')[0].value;
+                
+                // 将键值对添加到对象中
+                jsonOutput[key] = value;
+                }
+
+                // 将对象转换为 JSON 字符串
+                var jsonString = JSON.stringify(jsonOutput);
+
+                // 打印 JSON 字符串
+                console.log(jsonString);
+                var message = "是否保存此json:\n" +jsonString;
+                var result = confirm(message);
+                if (result) {
+                // 用户点击了确定按钮
+                // 将对象转换为 JSON 字符串
+                var jsonString = JSON.stringify(jsonOutput);
+
+                // 创建一个新的 Blob 对象
+                var blob = new Blob([jsonString], { type: 'application/json' });
+
+                // 创建一个下载链接
+                var downloadLink = document.createElement('a');
+                downloadLink.href = URL.createObjectURL(blob);
+                downloadLink.download = 'zh_cn.json';
+
+                // 模拟点击下载链接
+                downloadLink.click();
+                } else {
+                // 用户点击了取消按钮
+                }
+
+                
+            }
+        </script>
+        
+
+    </head>
+    
+    
+    <body>
+        <div id="headerLeft">
+            <h1>JSON Data</h1>
+            <div class="scrollable-table">
+                <table id="jsonlist">
+                    <thead>
+                        <tr>
+                            <th>Key</th>
+                            <th>Value</th>
+                            <th>Translate</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        %s
+                    </tbody>
+                </table>
+            </div>
+            <button onclick="replaceValues()">复制机翻</button>
+            <button onclick="output()">导出</button>
+        </div>
+    
+        <div id="headerRight">
+            <h1>模组翻译参考词典</h1>
+            <!-- <label for="searchKey">Search Key:</label> -->
+            <input type="text" id="searchKey">
+            <button onclick="searchDictionary()">搜索</button>
+            <div id="resultBlock"></div>
+        </div>
+    
+        <div id="content">
+
+    
+           
+        </div>
+    </body>
+    
+    </html>
