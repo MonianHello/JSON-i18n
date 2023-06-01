@@ -1,0 +1,1 @@
+MsgBox "请将要翻译的JSON文件放到程序根目录下", vbExclamation, "文件读取错误"

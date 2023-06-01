@@ -12,8 +12,12 @@ json_file = "en_us.json"
 config_file = 'config.ini'
 
 # 加载JSON文件
-with open(json_file, "r") as file:
-    data = json.load(file)
+if os.path.exists(json_file):
+    with open(json_file, "r") as file:
+        data = json.load(file)
+else:
+    os.system('cscript assets/alert2.vbs')
+    exit()  # 使用 exit() 函数退出程序
 
 # 判断配置文件是否存在，若不存在则新建配置文件并初始化
 if not os.path.exists(config_file):
@@ -148,7 +152,7 @@ def generate_table_rows(data, translate=False):
         try:
             access_token = get_access_token(api_key, secret_key)
         except:
-            os.system('cscript assets/alert.vbs')
+            os.system('cscript assets/alert1.vbs')
             for key, value in data.items():
                 table_rows += "<tr><td>%s</td><td><input type='text' id='%s' value='%s' %s/></td><td id='currentValue_%s'>%s</td></tr>" % (
                     key,
