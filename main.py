@@ -1,31 +1,72 @@
-import webview
-import json
-import requests
-from bs4 import BeautifulSoup
-import configparser
 import os
+import json
+from PySide2.QtWidgets import QApplication, QFileSystemModel, QTreeView, QVBoxLayout, QMainWindow, QPushButton, QTextEdit, QFileDialog, QMessageBox, QTableView, QTableWidgetItem, QHeaderView,QApplication, QMainWindow, QVBoxLayout, QLineEdit,QTabWidget,QPlainTextEdit,QLabel,QSpinBox,QListView
+from PySide2.QtUiTools import QUiLoader
+from PySide2.QtCore import QFile, Qt
+from PySide2 import QtCore, QtWidgets,QtGui
+from PySide2.QtGui import QStandardItem, QStandardItemModel,QIntValidator
 
-# JSON文件路径
-json_file = "en_us.json"
+from PySide2.QtWidgets import QMainWindow
+import configparser
+import requests
+import uuid
+from bs4 import BeautifulSoup
+import sys
+import re
 
+
+def add_unique_id_to_json(file_path):
+    """
+    为 JSON 文件添加唯一标识符。
+
+    参数：
+    file_path (str)：JSON 文件路径。
+
+    返回值：
+    str：生成或已存在的唯一标识符。
+    """
+
+    # 加载并解析 JSON 文件
+    def parse_json_file(file_path):
+        with open(file_path, 'r',encoding='utf-8') as f:
+            data = json.load(f)
+        return data
+
+    # 保存 JSON 文件
+    def save_json_file(data, file_path):
+        with open(file_path, 'w',encoding='utf-8') as f:
+            json.dump(data, f, indent=4)
+
+    # 解析 JSON 文件
+    data = parse_json_file(file_path)
+    
+    # 检查是否已经包含 "MonianHelloTranslateUUID" 键
+    if "MonianHelloTranslateUUID" in data:
+        return data["MonianHelloTranslateUUID"]
+
+    # 获取第一个键值对的键
+    key = list(data.keys())[0]
+
+    # 生成唯一标识符
+    unique_id = str(uuid.uuid4())
+
+    # 将唯一标识符添加到字典中
+    data['MonianHelloTranslateUUID'] = unique_id
+
+    # 保存 JSON 文件
+    save_json_file(data, file_path)
+
+    # 返回唯一标识符
+    return unique_id
 # 配置文件路径
 config_file = 'config.ini'
-
-# 加载JSON文件
-if os.path.exists(json_file):
-    with open(json_file, "r") as file:
-        data = json.load(file)
-else:
-    os.system('cscript assets/alert2.vbs')
-    exit()  # 使用 exit() 函数退出程序
-
 # 判断配置文件是否存在，若不存在则新建配置文件并初始化
 if not os.path.exists(config_file):
     config = configparser.ConfigParser()
     config['BAIDU_TRANSLATE_API'] = {'api_key': '',
                                     'secret_key': '',
                                     'enable': 'false'}
-    with open(config_file, 'w') as f:
+    with open(config_file, 'w',encoding='utf-8') as f:
         config.write(f)
 
 # 读取配置文件
@@ -36,7 +77,6 @@ config.read(config_file)
 api_key = config.get('BAIDU_TRANSLATE_API', 'api_key')
 secret_key = config.get('BAIDU_TRANSLATE_API', 'secret_key')
 enable_translate = config.getboolean('BAIDU_TRANSLATE_API', 'enable')
-
 
 def get_access_token(api_key, secret_key):
     url = "https://aip.baidubce.com/oauth/2.0/token"
@@ -49,7 +89,6 @@ def get_access_token(api_key, secret_key):
     result = response.json()
     access_token = result["access_token"]
     return access_token
-
 def translate_text(text, from_lang, to_lang, access_token):
     url = "https://aip.baidubce.com/rpc/2.0/mt/texttrans/v1"
     headers = {
@@ -66,22 +105,117 @@ def translate_text(text, from_lang, to_lang, access_token):
     response = requests.post(url, headers=headers, params=params, json=body)
 
     result = response.json()
-    translated_text = result["result"]["trans_result"][0]["dst"]
+    try:
+        translated_text = result["result"]["trans_result"][0]["dst"]
+    except:
+        translated_text = "由于未知原因，未能翻译此value。请参考以下错误信息："+response.json()
     return translated_text
 
-class Api:
-    def get_data(self):
-        return data
+class FileBrowser(QMainWindow):
+    def __init__(self):
+        folder_path = "TranslateFiles"
 
-    def update_value(self, key, value):
-        if key in data:
-            data[key] = value
-            with open(json_file, "w") as file:
-                json.dump(data, file)
-            return True
+        # 检查目录是否存在
+        if not os.path.exists(folder_path):
+            # 如果不存在，则创建新目录
+            os.makedirs(folder_path)
+            print(f"创建 '{folder_path}' 文件夹成功！")
         else:
-            return False
+            print(f"文件夹 '{folder_path}' 已存在。")
 
+        super().__init__()
+        self.row = 0
+        self.replacelineEditonEdit = False
+        # 加载UI文件
+        ui_file = QFile('MainWindow.ui')
+        ui_file.open(QFile.ReadOnly)
+        loader = QUiLoader()
+        self.window = loader.load(ui_file)
+        ui_file.close()
+
+        self.tree_view = self.window.findChild(QTreeView, 'treeView')
+        self.printbutton = self.window.findChild(QPushButton, 'printButton')
+        self.savebutton = self.window.findChild(QPushButton, 'saveButton')
+        self.translatebutton = self.window.findChild(QPushButton, 'translateButton')
+        self.copyButton = self.window.findChild(QPushButton, 'copyButton')
+        self.dict_table = self.window.findChild(QTableView, 'TableView')
+        self.searchLineEdit = self.window.findChild(QLineEdit, 'searchLineEdit')
+        self.reviewJumpPageLineEdit = self.window.findChild(QLineEdit, 'reviewJumpPageLineEdit')
+        self.searchTableView = self.window.findChild(QTableView, 'searchTableView')
+        self.tabWidget = self.window.findChild(QTabWidget, 'tabWidget')
+        self.originalReviewPlainTextEdit = self.window.findChild(QPlainTextEdit, 'originalReviewPlainTextEdit')
+        self.translateReviewPlainTextEdit = self.window.findChild(QPlainTextEdit, 'translateReviewPlainTextEdit')
+        self.machineTranslateReviewPlainTextEdit = self.window.findChild(QPlainTextEdit, 'machineTranslateReviewPlainTextEdit')
+        self.reviewPreviousPushButton = self.window.findChild(QPushButton,'reviewPreviousPushButton')
+        self.reviewNextPushButton = self.window.findChild(QPushButton,'reviewNextPushButton')
+        self.reviewLabel = self.window.findChild(QLabel,'reviewLabel')
+        self.replacelineEdit = self.window.findChild(QLineEdit,'replacelineEdit')
+        self.replacelistView = self.window.findChild(QListView,'replacelistView')
+
+        #禁止用户编辑replacelistView
+        self.replacelistView.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+
+        #设置数字校验器
+        self.reviewJumpPageLineEdit.setValidator(QIntValidator())
+        #绑定回车事件
+        self.searchLineEdit.returnPressed.connect(self.on_searchLineEdit_return_pressed)
+        self.replacelineEdit.returnPressed.connect(self.on_replacelineEdit_return_pressed)
+        self.reviewJumpPageLineEdit.returnPressed.connect(self.on_reviewJumpPageLineEdit_return_pressed)
+
+        # 创建文件浏览器模型
+        desktop_path = os.path.join(os.path.expanduser('~'), 'Desktop')
+        self.model = QtWidgets.QFileSystemModel()
+        self.model.setRootPath(desktop_path)
+        self.model.setFilter(QtCore.QDir.NoDotAndDotDot | QtCore.QDir.AllEntries)
+        # 将模型设置为 QTreeView 的模型
+        self.tree_view.setModel(self.model)
+        # 设置根索引为桌面文件夹的索引
+        root_index = self.model.index(desktop_path)
+        self.tree_view.setRootIndex(root_index)
+        
+        self.tabWidget.currentChanged.connect(self.tabChanged)
+
+        # 隐藏列
+        self.tree_view.setColumnHidden(1, True)
+        self.tree_view.setColumnHidden(2, True)
+        self.tree_view.setColumnHidden(3, True)
+        # 将“Name”列的宽度设置为固定值
+        self.tree_view.setColumnWidth(0, 200)  # 设置“Name”列的宽度为 200 像素
+
+        # 绑定双击事件
+        self.tree_view.doubleClicked.connect(self.on_treeView_doubleClicked)
+        # 将按钮与其回调函数关联
+        self.printbutton.clicked.connect(self.on_printbutton_clicked)
+        self.savebutton.clicked.connect(self.on_savebutton_clicked)
+        self.translatebutton.clicked.connect(self.on_translatebutton_clicked)
+        self.copyButton.clicked.connect(self.on_copyButton_clicked)
+        self.reviewPreviousPushButton.clicked.connect(self.on_reviewPreviousPushButton_clicked)
+        self.reviewNextPushButton.clicked.connect(self.on_reviewNextPushButton_clicked)
+        self.dict_table.verticalHeader().sectionClicked.connect(self.handleHeaderClicked)
+        # 显示窗口
+        self.window.show()
+
+        # 初始化百度翻译API
+        self.translate = None
+    def get_file_path(self, index):
+        return self.model.filePath(index)
+    def on_treeView_doubleClicked(self, index):
+        file_path = self.get_file_path(index)
+        if os.path.isfile(file_path):
+            # 如果是文件则执行打印文件的回调函数
+            self.on_printbutton_clicked()
+
+        # “打印文件”按钮的回调函数
+    def set_model_data(self, table, data):
+        table.clear()
+        table.setRowCount(len(data))
+        table.setColumnCount(len(data[0]))
+        header = QHeaderView(Qt.Orientation.Horizontal)
+        table.setHorizontalHeader(header)
+        for i, row in enumerate(data):
+            for j, col in enumerate(row):
+                item = QTableWidgetItem(str(col))
+                table.setItem(i, j, item)
     def search_dictionary(self, key):
         url = "https://dict.mcmod.cn/connection/search.php"
         headers = {
@@ -92,7 +226,7 @@ class Api:
         }
         data = {
             "key": key,
-            "max":10,
+            "max":16,
             "range": 1
         }
 
@@ -104,7 +238,7 @@ class Api:
             table = soup.find('table')
             rows = table.find_all('tr')
         except:
-            return "无结果"
+            return 0
 
         data = []
         for row in rows:
@@ -122,116 +256,359 @@ class Api:
             swapped_array = [[sublist[1], sublist[0]] for sublist in array]
             return swapped_array
 
-        def format_array_as_html_table(array):
-            table_rows = ""
-            for sublist in array:
-                row = "<tr>"
-                for element in sublist:
-                    row += "<td>{}</td>".format(element)
-                row += "</tr>"
-                table_rows += row
-            html_table = "<table>{}</table>".format(table_rows)
-            return html_table
-
         # 调用函数提取每个一维数组的前两个元素
         extracted_array = extract_first_two_elements(data)
         swapped_array = swap_values(extracted_array)
-        # 将提取的数组格式化为 HTML 表格
-        html_table = format_array_as_html_table(swapped_array)
+        return swapped_array 
+    def on_searchLineEdit_return_pressed(self):
+        searchResult= self.search_dictionary(self.searchLineEdit.text())
+        print(searchResult)
+        if searchResult:
+            keys = []
+            values = []
+            for i in searchResult:
+                if i==['原文', '翻译结果']:
+                    continue
+                keys.append(i[0])
+                values.append(i[1])
+            model = QStandardItemModel(len(keys), 2, self)
+            for i, key in enumerate(keys):
 
-        return html_table
-    
+                value = str(values[i])
+                model.setItem(i, 0, QStandardItem(key))
+                model.setItem(i, 1, QStandardItem(value))
+            # 将填充好数据的表格模型应用到 QTableView 中
+            self.searchTableView.setModel(model)
 
-def generate_table_rows(data, translate=False):
-    table_rows = ""
+            # 设置表头标题
+            model.setHeaderData(0, Qt.Horizontal, "原文")
+            model.setHeaderData(1, Qt.Horizontal, "翻译结果")
+        else:
+            model = QStandardItemModel(1, 1, self)
+            model.setItem(0, 0, QStandardItem("无搜索结果"))
+            self.searchTableView.setModel(model)
+            model.setHeaderData(0, Qt.Horizontal, "")
+    def on_copyButton_clicked(self):
+        # 获取当前的模型
+        model = self.dict_table.model()
+        index = self.tree_view.currentIndex()
+        file_path = self.get_file_path(index)
+        uuid = add_unique_id_to_json(file_path)
+        print(uuid)
+        TranslateFilespath = 'TranslateFiles/' + uuid + '.json'
+        if os.path.exists(TranslateFilespath):
+            print('翻译文件存在')
+            for row in range(model.rowCount()):
+                # 跳过第一列值为'MonianHelloTranslateUUID'的行
+                item = model.item(row, 0)
+                if item and item.text() == 'MonianHelloTranslateUUID':
+                    continue
 
+                # 交换第2、3列的值
+                index1 = model.index(row, 1)
+                index2 = model.index(row, 2)
+                data1 = model.data(index1)
+                data2 = model.data(index2)
+                model.setData(index1, data2)
+                model.setData(index2, data1)
+    def on_printbutton_clicked(self):
+        self.row = 0
+        # 获取当前选中文件的路径
+        self.tabWidget.setCurrentIndex(0)
+        index = self.tree_view.currentIndex()
+        file_path = self.get_file_path(index)
 
-    if translate:
+        # 判断是否为 JSON 文件
+        if not os.path.splitext(file_path)[1].lower() == '.json':
+            QMessageBox.warning(self, '错误', '不是 JSON 文件！')
+            return
+
+        try:
+            # 打开选中的 JSON 文件，并按 key:value 的形式显示其中的内容
+            uuid = add_unique_id_to_json(file_path)
+            print(uuid)
+            TranslateFilespath = 'TranslateFiles/' + uuid + '.json'
+            if os.path.exists(TranslateFilespath):
+                print('翻译文件存在')
+                translationFileExists = True
+            else:
+                print('翻译文件不存在')
+                translationFileExists = False
+            with open(file_path, 'r', encoding='utf-8') as f:
+                file_content = f.read()
+                content = json.loads(file_content)
+                keys = []
+                values = []
+                for key, value in content.items():
+                    keys.append(key)
+                    values.append(value)
+
+                if translationFileExists:
+                    with open(TranslateFilespath, 'r',encoding='utf-8') as ff:
+                        data2 = json.load(ff)
+                    model = QStandardItemModel(len(keys), 3, self)
+                    for i, key in enumerate(keys):
+                        value = str(values[i])
+                        model.setItem(i, 0, QStandardItem(key))
+                        model.setItem(i, 1, QStandardItem(value))
+                        model.setItem(i, 2, QStandardItem(data2.get(key)))
+                else:
+                    model = QStandardItemModel(len(keys), 2, self)
+                    for i, key in enumerate(keys):
+                        value = str(values[i])
+                        model.setItem(i, 0, QStandardItem(key))
+                        model.setItem(i, 1, QStandardItem(value))
+                        
+                # 将填充好数据的表格模型应用到 QTableView 中
+                self.dict_table.setModel(model)
+
+                # 设置表头标题
+                model.setHeaderData(0, Qt.Horizontal, "键名")
+                model.setHeaderData(1, Qt.Horizontal, "原文")
+                model.setHeaderData(2, Qt.Horizontal, "译文")
+
+        except ValueError:
+            # 不是 JSON 格式，直接显示文本
+            self.text_edit.setPlainText(file_content) 
+    def on_savebutton_clicked(self):
+        self.tabWidget.setCurrentIndex(0)
+        # 获取表格中的数据
+        model = self.dict_table.model()
+        data = {}
+        for row in range(model.rowCount()):
+            key = model.index(row, 0).data()
+            value = model.index(row, 1).data()
+            data[key] = value
+
+        # 将数据写入文件
+        file_name = self.tree_view.selectedIndexes()[0].data()
+        with open(file_name, 'w',encoding='utf-8') as f:
+            json.dump(data, f, indent=4)
+
+        # 显示保存成功消息框
+        msg_box = QMessageBox(QMessageBox.Information, "提示信息", "文件保存成功！")
+        msg_box.exec_()
+    def on_reviewNextPushButton_clicked(self):
+        model = self.dict_table.model()
+        
+        if 0<=self.row and self.row<model.rowCount()-1:
+            try:
+            # 更新模型中的数据
+                model.setData(model.index(self.row, 0), self.originalReviewPlainTextEdit.toPlainText())
+                model.setData(model.index(self.row, 1), self.translateReviewPlainTextEdit.toPlainText())
+            except:
+                return 0
+            self.row += 1
+            self.reviewLabel.setText("第{}个/共{}个".format(self.row+1,model.rowCount()))
+            self.tabChanged(1)
+    def on_reviewPreviousPushButton_clicked(self):
+        model = self.dict_table.model()
+        
+        if 0<self.row and  self.row<=model.rowCount():
+            try:
+            # 更新模型中的数据
+                model.setData(model.index(self.row, 0), self.originalReviewPlainTextEdit.toPlainText())
+                model.setData(model.index(self.row, 1), self.translateReviewPlainTextEdit.toPlainText())
+            except:
+                return 0
+            self.row -= 1   
+            self.reviewLabel.setText("第{}个/共{}个".format(self.row+1,model.rowCount()))
+            self.tabChanged(1)
+    def handleHeaderClicked(self, logicalIndex):
+        print(f"Selected row: {logicalIndex}")
+        if self.tabWidget.currentIndex() == 0:
+            self.reviewLabel.setText("第{}个/共{}个".format(logicalIndex+1,self.dict_table.model().rowCount()))
+            self.row = logicalIndex
+            self.tabWidget.setCurrentIndex(1)
+    def on_reviewJumpPageLineEdit_return_pressed(self):
+
+        inputrow = 1
+        inputrow = int(self.reviewJumpPageLineEdit.text())
+        self.reviewJumpPageLineEdit.clear()
+        try:
+            model = self.dict_table.model()
+            assert 0<= self.row <=model.rowCount()
+            try:
+                # 更新模型中的数据
+                    model.setData(model.index(self.row, 0), self.originalReviewPlainTextEdit.toPlainText())
+                    model.setData(model.index(self.row, 1), self.translateReviewPlainTextEdit.toPlainText())
+            except:
+                return 0
+        except:
+            return 0
+        if 0 < inputrow and inputrow <= model.rowCount():
+            self.row = inputrow-1
+            try:
+                self.reviewLabel.setText("第{}个/共{}个".format(self.row+1,self.dict_table.model().rowCount()))
+                self.originalReviewPlainTextEdit.setPlainText(model.index(self.row, 0).data())
+                self.translateReviewPlainTextEdit.setPlainText(model.index(self.row, 1).data())
+                self.machineTranslateReviewPlainTextEdit.setPlainText(model.index(self.row, 2).data())
+            except:
+                return 0
+    def tabChanged(self,index):
+        
+        print(f"Selected tab index: {index}")
+        try:
+            model = self.dict_table.model()
+            assert 0<= self.row <=model.rowCount()
+        except:
+            return 0
+
+        if index == 1:
+            try:
+                self.reviewLabel.setText("第{}个/共{}个".format(self.row+1,self.dict_table.model().rowCount()))
+                self.originalReviewPlainTextEdit.setPlainText(model.index(self.row, 0).data())
+                self.translateReviewPlainTextEdit.setPlainText(model.index(self.row, 1).data())
+                self.machineTranslateReviewPlainTextEdit.setPlainText(model.index(self.row, 2).data())
+            except:
+                return 0
+        if index == 0:
+            try:
+            # 更新模型中的数据
+                model.setData(model.index(self.row, 0), self.originalReviewPlainTextEdit.toPlainText())
+                model.setData(model.index(self.row, 1), self.translateReviewPlainTextEdit.toPlainText())
+            except:
+                return 0
+    def on_translatebutton_clicked(self):
+        # 获取选中文件的路径
+        index = self.tree_view.currentIndex()
+        file_path = self.get_file_path(index)
+
+        # 判断是否为 JSON 文件
+        if not os.path.splitext(file_path)[1].lower() == '.json':
+            QMessageBox.warning(self, '错误', '不是 JSON 文件！')
+            return
+
+        if not enable_translate:
+            QMessageBox.warning(self, '错误', '配置文件中未启用翻译功能')
+            return
+
+        # 打开选中的 JSON 文件，并按 key:value 的形式显示其中的内容
+        with open(file_path, 'r', encoding='utf-8') as f:
+            file_content = f.read()
+            content = json.loads(file_content)
+            keys = []
+            values = []
+            for key, value in content.items():
+                keys.append(key)
+                values.append(value)
+
+        # 准备翻译
+        translates = []
+        item_count = len(keys)
         from_lang = "en"  # 源语言为英语
         to_lang = "zh"  # 目标语言为中文
-        try:
-            access_token = get_access_token(api_key, secret_key)
-        except:
-            os.system('cscript assets/alert1.vbs')
-            for key, value in data.items():
-                table_rows += "<tr><td>%s</td><td><input type='text' id='%s' value='%s' %s/></td><td id='currentValue_%s'>%s</td></tr>" % (
-                    key,
-                    key,
-                    value,
-                    "readonly" if isinstance(value, dict) or isinstance(value, list) else "",
-                    key,
-                    ""  # 设置新的值列标识的初始值
-                )
-            return table_rows
+
+        # 翻译每个条目，并保存到新的字典中
+        for i, key in enumerate(keys):
+            if key == "MonianHelloTranslateUUID":
+                del content[key]
+                continue
+            value = str(values[i])
+            try:
+                access_token = get_access_token(api_key, secret_key)
+            except:
+                QMessageBox.warning(self, '鉴权错误', '无法通过鉴权认证。请检查您提供的百度AK/SK是否正确并具有访问该服务的权限')
+            translates.append(translate_text(str(value), from_lang, to_lang, access_token))
+            progress = (i + 1) / item_count * 100
+            print(f'翻译进度：{progress:.2f}%')  # 更新进度条
+        print("完成")
+        translated_dict = dict(zip(keys, translates))
+
+        # 将翻译结果保存到新的 JSON 文件中
+        uuid = add_unique_id_to_json(file_path)
+        with open('TranslateFiles/'+uuid+'.json', 'w', encoding='utf-8') as f:
+            json.dump(translated_dict, f, indent=4)
+    def on_replacelineEdit_return_pressed(self):
+        if self.replacelineEditonEdit:
+            pass
+        else:
+            self.tabWidget.setCurrentIndex(0)
+            tab_index = self.tabWidget.currentIndex()
+            if tab_index == 0:
+                model = self.dict_table.model()
+                data = []  # 一维数组
+                for row in range(model.rowCount()):
+                    key_item = model.item(row, 0)
+                    value_item = model.item(row, 1)
+                    if key_item and value_item:
+                        data.append(value_item.text())
+            newdata2=[]
+            newdata2.append(f"匹配到以下数据：")
+            self.oldString = self.replacelineEdit.text()
+            for i in data:
+                if self.oldString in i:
+                    newdata2.append(i)
+            model2 = QtGui.QStandardItemModel()
+            for item in newdata2:
+                model2.appendRow(QtGui.QStandardItem(item))
+            self.replacelistView.setModel(model2)
+            print("读取到被替换字符串：",self.oldString)
+            if not self.oldString:
+                return 0
+            self.replacelineEditonEdit = True
+            self.replacelineEdit.clear()
+            self.replacelineEdit.setPlaceholderText("请输入替换后的值，留空以放弃操作")
+            return 0
         
-        translatelist = []
-        
-        def translate_and_track_progress(data, from_lang, to_lang, access_token):
-            total_items = len(data)
-            translated_items = 0
+        newString = self.replacelineEdit.text()
+        print("读取到替换字符串：",newString)
+        if not newString:
+            self.replacelistView.model().removeRows(0, self.replacelistView.model().rowCount())
+            self.replacelineEditonEdit = False
+            self.replacelineEdit.clear()
+            self.replacelineEdit.setPlaceholderText("请输入要替换的值，留空以放弃操作")
+            return 0
+        self.tabWidget.setCurrentIndex(0)
+        tab_index = self.tabWidget.currentIndex()
 
-            for key, value in data.items():
-                translated_text = str(translate_text(str(value), from_lang, to_lang, access_token))
-                translatelist.append((key, value, translated_text))
-                # print((key, value, translated_text))
-                translated_items += 1
+        if tab_index == 0:
+            model = self.dict_table.model()
+            data = []  # 一维数组
+            for row in range(model.rowCount()):
+                key_item = model.item(row, 0)
+                value_item = model.item(row, 1)
+                if key_item and value_item:
+                    data.append(value_item.text())
 
-                # 计算进度百分比
-                progress = int((translated_items / total_items) * 100)
+            updates = []     # 匹配到的序号列表
+            new_values = []  # 替换的内容列表
+            temp = 0
 
-                # 更新进度条
-                print(f"翻译进程: [{progress}%] {'=' * progress}>{' ' * (100 - progress)}", end="\r")
+            for i in data:
+                
+                if self.oldString in i:
+                    updates.append(temp)
+                    # new_values.append("op")
+                    print("在",i,"中发现",self.oldString)
+                    new_values.append(i.replace(self.oldString, newString))
+                else:
+                    print("在",i,"中未发现",self.oldString)
+                    pass
+                temp += 1
+            print(updates)
+            print(new_values)
 
-            # print("\n翻译完成")
+            newdata=[]
+            newdata.append(f"更新了以下数据：")
+            for i, update in enumerate(updates):
+                newdata.append(f"{data[update]} => {new_values[i]} ")
+            
+            model2 = QtGui.QStandardItemModel()
+            for item in newdata:
+                model2.appendRow(QtGui.QStandardItem(item))
+            self.replacelistView.setModel(model2)
 
-        # 在主函数 main() 中调用 translate_and_track_progress() 函数，并传递必要的参数。
-        translate_and_track_progress(data, from_lang, to_lang, access_token)
-
-        for key, value, translated_text in translatelist:
-            table_rows += "<tr><td>%s</td><td><input type='text' id='%s' value='%s' %s/></td><td id='currentValue_%s'>%s</td></tr>" % (
-                key,
-                key,
-                value,
-                "readonly" if isinstance(value, dict) or isinstance(value, list) else "",
-                key,
-                translated_text
-            )
-    else:
-        for key, value in data.items():
-            table_rows += "<tr><td>%s</td><td><input type='text' id='%s' value='%s' %s/></td><td id='currentValue_%s'>%s</td></tr>" % (
-                key,
-                key,
-                value,
-                "readonly" if isinstance(value, dict) or isinstance(value, list) else "",
-                key,
-                ""  # 设置新的值列标识的初始值
-            )
-
-    return table_rows
-
-
-
-def main():
-    
-    # HTML模板，用于显示JSON数据和更新值
-    html_template = open("assets/index.html", "r", encoding="utf-8").read()
-
-    # 生成HTML表格内容
-    table_rows = ""
-    # print(data.items())
-    
-    api = Api()
-
-    table_rows = generate_table_rows(data, translate=enable_translate)
-
-    html_content = html_template % table_rows
-
-    # 创建webview窗口并加载HTML内容和API
-    window = webview.create_window("JSON Editor", html=html_content, js_api=api,width=1500, height=900)
-
-    # 启动webview
-    webview.start()
-
-
-if __name__ == "__main__":
-    main()
+            # 遍历更新需要更新的单元格
+            for row, new_value in zip(updates, new_values):
+                item = model.item(row, 1)
+                item.setData(new_value, QtCore.Qt.EditRole) 
+        model3 = QtGui.QStandardItemModel()
+        self.replacelistView.setModel(model3)
+        self.replacelineEditonEdit = False
+        self.replacelineEdit.clear()
+        self.replacelineEdit.setPlaceholderText("请输入要替换的值")
+if __name__ == '__main__':
+    app = QApplication([])
+    file_browser = FileBrowser()
+    app.exec_()
