@@ -200,7 +200,7 @@
         </layout>
        </widget>
       </widget>
-      <widget class="QWidget" name="">
+      <widget class="QWidget" name="layoutWidget">
        <layout class="QVBoxLayout" name="verticalLayout_2">
         <item>
          <widget class="QLineEdit" name="searchLineEdit">
@@ -330,7 +330,14 @@
      <string>关于</string>
     </property>
    </widget>
+   <widget class="QMenu" name="menu_2">
+    <property name="title">
+     <string>工具</string>
+    </property>
+    <addaction name="actionClearSpaces"/>
+   </widget>
    <addaction name="menu12"/>
+   <addaction name="menu_2"/>
    <addaction name="menu"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
@@ -342,6 +349,16 @@
   <action name="actionsave">
    <property name="text">
     <string>save</string>
+   </property>
+  </action>
+  <action name="actiontool1">
+   <property name="text">
+    <string>一键替换</string>
+   </property>
+  </action>
+  <action name="actionClearSpaces">
+   <property name="text">
+    <string>一键清空空格</string>
    </property>
   </action>
  </widget>

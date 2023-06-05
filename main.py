@@ -1,6 +1,6 @@
 import os
 import json
-from PySide2.QtWidgets import QApplication, QFileSystemModel, QTreeView, QVBoxLayout, QMainWindow, QPushButton, QTextEdit, QFileDialog, QMessageBox, QTableView, QTableWidgetItem, QHeaderView,QApplication, QMainWindow, QVBoxLayout, QLineEdit,QTabWidget,QPlainTextEdit,QLabel,QSpinBox,QListView
+from PySide2.QtWidgets import QApplication, QFileSystemModel, QTreeView, QVBoxLayout, QMainWindow, QPushButton, QTextEdit, QFileDialog, QMessageBox, QTableView, QTableWidgetItem, QHeaderView,QApplication, QMainWindow, QVBoxLayout, QLineEdit,QTabWidget,QPlainTextEdit,QLabel,QSpinBox,QListView,QAction
 from PySide2.QtUiTools import QUiLoader
 from PySide2.QtCore import QFile, Qt
 from PySide2 import QtCore, QtWidgets,QtGui
@@ -157,6 +157,11 @@ class FileBrowser(QMainWindow):
         self.reviewLabel = self.window.findChild(QLabel,'reviewLabel')
         self.replacelineEdit = self.window.findChild(QLineEdit,'replacelineEdit')
         self.replacelistView = self.window.findChild(QListView,'replacelistView')
+        self.actionClearSpaces = self.window.findChild(QAction, 'actionClearSpaces')
+
+
+        #QAction
+        self.actionClearSpaces.triggered.connect(self.handleActionClearSpaces)
 
         #禁止用户编辑replacelistView
         self.replacelistView.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
@@ -202,6 +207,7 @@ class FileBrowser(QMainWindow):
         self.invertSelectionPushButton.hide()
         self.selectAllPushButton.hide()
         self.dict_table.verticalHeader().sectionClicked.connect(self.handleHeaderClicked)
+
         # 显示窗口
         self.window.show()
 
@@ -211,6 +217,17 @@ class FileBrowser(QMainWindow):
         # 在 __init__ 函数中连接 clicked 信号到响应函数
         self.replacelistView.clicked.connect(self.handle_replacelistView_cell_clicked)
     
+    def handleActionClearSpaces(self):
+        model = self.dict_table.model()
+        # 遍历所有行
+        for row in range(model.rowCount()):
+            # 获取当前行的 value 列的 QStandardItem 实例
+            item = model.item(row, 1)
+            # 获取该实例中的字符串并清除其中的空格
+            text = item.text().replace(' ', '')
+            # 将新字符串设置回该实例中
+            item.setText(text)
+
     def handle_replacelistView_cell_clicked(self, index):
         # 获取所单击单元格的值
         value = self.replacelistView.model().data(index)
