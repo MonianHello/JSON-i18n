@@ -5,7 +5,9 @@ from PySide2.QtUiTools import QUiLoader
 from PySide2.QtCore import QFile, Qt
 from PySide2 import QtCore, QtWidgets,QtGui
 from PySide2.QtGui import QStandardItem, QStandardItemModel,QIntValidator
-
+import sys
+from PySide2.QtGui import QPalette, QColor
+from PySide2.QtWidgets import QApplication
 from PySide2.QtWidgets import QMainWindow
 import configparser
 import requests
@@ -107,8 +109,9 @@ def translate_text(text, from_lang, to_lang, access_token):
     result = response.json()
     try:
         translated_text = result["result"]["trans_result"][0]["dst"]
-    except:
-        translated_text = "由于未知原因，未能翻译此value。请参考以下错误信息："+response.json()
+    except Exception as e:
+        translated_text = ""
+        print("由于未知原因，无法翻译文本\"{}\"。请参考以下错误信息：\n{}\n{}".format(text, response.json(), e))
     return translated_text
 
 class FileBrowser(QMainWindow):
@@ -126,6 +129,7 @@ class FileBrowser(QMainWindow):
         super().__init__()
         self.row = 0
         self.replacelineEditonEdit = False
+        
         # 加载UI文件
         ui_file = QFile('MainWindow.ui')
         ui_file.open(QFile.ReadOnly)
@@ -138,6 +142,8 @@ class FileBrowser(QMainWindow):
         self.savebutton = self.window.findChild(QPushButton, 'saveButton')
         self.translatebutton = self.window.findChild(QPushButton, 'translateButton')
         self.copyButton = self.window.findChild(QPushButton, 'copyButton')
+        self.selectAllPushButton = self.window.findChild(QPushButton, 'selectAllPushButton')
+        self.invertSelectionPushButton = self.window.findChild(QPushButton, 'invertSelectionPushButton')
         self.dict_table = self.window.findChild(QTableView, 'TableView')
         self.searchLineEdit = self.window.findChild(QLineEdit, 'searchLineEdit')
         self.reviewJumpPageLineEdit = self.window.findChild(QLineEdit, 'reviewJumpPageLineEdit')
@@ -191,12 +197,38 @@ class FileBrowser(QMainWindow):
         self.copyButton.clicked.connect(self.on_copyButton_clicked)
         self.reviewPreviousPushButton.clicked.connect(self.on_reviewPreviousPushButton_clicked)
         self.reviewNextPushButton.clicked.connect(self.on_reviewNextPushButton_clicked)
+        self.invertSelectionPushButton.clicked.connect(self.on_invertSelectionPushButton_clicked)
+        self.selectAllPushButton.clicked.connect(self.on_selectAllPushButton_clicked)
+        self.invertSelectionPushButton.hide()
+        self.selectAllPushButton.hide()
         self.dict_table.verticalHeader().sectionClicked.connect(self.handleHeaderClicked)
         # 显示窗口
         self.window.show()
 
         # 初始化百度翻译API
         self.translate = None
+
+        # 在 __init__ 函数中连接 clicked 信号到响应函数
+        self.replacelistView.clicked.connect(self.handle_replacelistView_cell_clicked)
+    
+    def handle_replacelistView_cell_clicked(self, index):
+        # 获取所单击单元格的值
+        value = self.replacelistView.model().data(index)
+        # 将其按照空格分割并获取第一片
+        try:
+            first_piece = value.split(' ')[0]
+        except IndexError:
+            # 如果切片不成功就取消焦点
+            self.dict_table.clearSelection()
+            return
+        # 将该数字转换为整数
+        row_index = int(first_piece) - 1  # 从 0 开始计算行数
+
+        # 将焦点移动到 dict_table 中对应的行
+        model = self.dict_table.model()
+        if row_index >= 0 and row_index < model.rowCount():
+            self.dict_table.selectRow(row_index)
+        
     def get_file_path(self, index):
         return self.model.filePath(index)
     def on_treeView_doubleClicked(self, index):
@@ -301,9 +333,9 @@ class FileBrowser(QMainWindow):
             for row in range(model.rowCount()):
                 # 跳过第一列值为'MonianHelloTranslateUUID'的行
                 item = model.item(row, 0)
+                print(item.text())
                 if item and item.text() == 'MonianHelloTranslateUUID':
                     continue
-
                 # 交换第2、3列的值
                 index1 = model.index(row, 1)
                 index2 = model.index(row, 2)
@@ -340,6 +372,8 @@ class FileBrowser(QMainWindow):
                 keys = []
                 values = []
                 for key, value in content.items():
+                    if key == "MonianHelloTranslateUUID":
+                        continue
                     keys.append(key)
                     values.append(value)
 
@@ -519,10 +553,119 @@ class FileBrowser(QMainWindow):
         uuid = add_unique_id_to_json(file_path)
         with open('TranslateFiles/'+uuid+'.json', 'w', encoding='utf-8') as f:
             json.dump(translated_dict, f, indent=4)
+
+    def on_selectAllPushButton_clicked(self):
+        # 获取视图绑定的模型
+        model = self.replacelistView.model()
+
+        # 遍历模型中的所有项，并将其选中状态设置为Checked
+        for i in range(model.rowCount()-1):
+            item = model.item(i+1)
+            item.setCheckState(QtCore.Qt.Checked)
+
+        
+    def on_invertSelectionPushButton_clicked(self):
+        # 获取视图绑定的模型
+        model = self.replacelistView.model()
+
+        # 遍历模型中的所有项，并将其选中状态取反
+        for i in range(model.rowCount()-1):
+            item = model.item(i+1)
+            if item.checkState() == QtCore.Qt.Checked:
+                item.setCheckState(QtCore.Qt.Unchecked)
+            else:
+                item.setCheckState(QtCore.Qt.Checked)
+
     def on_replacelineEdit_return_pressed(self):
         if self.replacelineEditonEdit:
-            pass
+            newString = self.replacelineEdit.text()
+            print("读取到替换字符串：",newString)
+            if not newString:
+                self.replacelistView.model().removeRows(0, self.replacelistView.model().rowCount())
+                self.replacelineEditonEdit = False
+                self.replacelineEdit.clear()
+                self.replacelineEdit.setPlaceholderText("请输入要替换的值")
+                self.invertSelectionPushButton.hide()
+                self.selectAllPushButton.hide()
+                return 0
+            self.invertSelectionPushButton.hide()
+            self.selectAllPushButton.hide()
+            self.tabWidget.setCurrentIndex(0)
+            tab_index = self.tabWidget.currentIndex()
+
+            needReplaces = []
+
+            model = self.replacelistView.model()
+            for row in range(model.rowCount()):
+                item = model.item(row)
+                # 判断该行item是否为复选框
+                if item.isCheckable():
+                    # 获取复选框状态
+                    checked = item.checkState() == QtCore.Qt.CheckState.Checked
+                    if checked:
+                        needReplaces.append(row)
+
+            if tab_index == 0:
+                model = self.dict_table.model()
+                
+                data = []  # 一维数组
+                for row in range(model.rowCount()):
+                    key_item = model.item(row, 0)
+                    value_item = model.item(row, 1)
+                    if key_item and value_item:
+                        data.append(value_item.text())
+
+                updates = []     # 匹配到的序号列表
+                new_values = []  # 替换的内容列表
+                temp = 0
+
+                for i in data:
+                    
+                    if self.oldString in i:
+                        updates.append(temp)
+                        # new_values.append("op")
+                        # print("在",i,"中发现",self.oldString)
+                        new_values.append(i.replace(self.oldString, newString))
+                    else:
+                        # print("在",i,"中未发现",self.oldString)
+                        pass
+                    temp += 1
+                # print(updates)
+                # print(new_values)
+                
+                updates = [updates[i-1] for i in needReplaces]
+                new_values = [new_values[i-1] for i in needReplaces]
+
+                newdata=[]
+                newdata.append(f"更新了以下数据：")
+                for i, update in enumerate(updates):
+                    newdata.append(f"{data[update]} => {new_values[i]} ")
+                
+                model2 = QtGui.QStandardItemModel()
+                for item in newdata:
+                    model2.appendRow(QtGui.QStandardItem(item))
+                self.replacelistView.setModel(model2)
+
+                # 遍历更新需要更新的单元格
+                for row, new_value in zip(updates, new_values):
+                    item = model.item(row, 1)
+                    item.setData(new_value, QtCore.Qt.EditRole) 
+            # model3 = QtGui.QStandardItemModel()
+            # self.replacelistView.setModel(model3)
+            self.replacelineEditonEdit = False
+            self.replacelineEdit.clear()
+            self.replacelineEdit.setPlaceholderText("请输入要替换的值")
         else:
+            self.oldString = self.replacelineEdit.text()
+            print("读取到被替换字符串：",self.oldString)
+            if not self.oldString:
+                self.replacelistView.model().removeRows(0, self.replacelistView.model().rowCount())
+                self.replacelineEditonEdit = False
+                self.replacelineEdit.clear()
+                self.replacelineEdit.setPlaceholderText("请输入要替换的值")
+                self.invertSelectionPushButton.hide()
+                self.selectAllPushButton.hide()
+                return 0
             self.tabWidget.setCurrentIndex(0)
             tab_index = self.tabWidget.currentIndex()
             if tab_index == 0:
@@ -532,83 +675,67 @@ class FileBrowser(QMainWindow):
                     key_item = model.item(row, 0)
                     value_item = model.item(row, 1)
                     if key_item and value_item:
-                        data.append(value_item.text())
-            newdata2=[]
-            newdata2.append(f"匹配到以下数据：")
+                        data.append(f"{row+1} {value_item.text()}")
+            newdata2 = []
+            newdata2.append(QtGui.QStandardItem("匹配到以下数据："))
+            
             self.oldString = self.replacelineEdit.text()
+            self.invertSelectionPushButton.show()
+            self.selectAllPushButton.show()
+
             for i in data:
                 if self.oldString in i:
-                    newdata2.append(i)
+                    item = QtGui.QStandardItem(i)
+                    item.setCheckable(True)  # 设置复选框
+                    newdata2.append(item)
+            
             model2 = QtGui.QStandardItemModel()
             for item in newdata2:
-                model2.appendRow(QtGui.QStandardItem(item))
+                model2.appendRow(item)
+
             self.replacelistView.setModel(model2)
-            print("读取到被替换字符串：",self.oldString)
-            if not self.oldString:
-                return 0
+
             self.replacelineEditonEdit = True
             self.replacelineEdit.clear()
             self.replacelineEdit.setPlaceholderText("请输入替换后的值，留空以放弃操作")
             return 0
-        
-        newString = self.replacelineEdit.text()
-        print("读取到替换字符串：",newString)
-        if not newString:
-            self.replacelistView.model().removeRows(0, self.replacelistView.model().rowCount())
-            self.replacelineEditonEdit = False
-            self.replacelineEdit.clear()
-            self.replacelineEdit.setPlaceholderText("请输入要替换的值，留空以放弃操作")
-            return 0
-        self.tabWidget.setCurrentIndex(0)
-        tab_index = self.tabWidget.currentIndex()
 
-        if tab_index == 0:
-            model = self.dict_table.model()
-            data = []  # 一维数组
-            for row in range(model.rowCount()):
-                key_item = model.item(row, 0)
-                value_item = model.item(row, 1)
-                if key_item and value_item:
-                    data.append(value_item.text())
+def darkmode():
+    app.setStyle('Fusion')
+    
 
-            updates = []     # 匹配到的序号列表
-            new_values = []  # 替换的内容列表
-            temp = 0
+    # 获取系统默认调色板
+    palette = QPalette()
 
-            for i in data:
-                
-                if self.oldString in i:
-                    updates.append(temp)
-                    # new_values.append("op")
-                    print("在",i,"中发现",self.oldString)
-                    new_values.append(i.replace(self.oldString, newString))
-                else:
-                    print("在",i,"中未发现",self.oldString)
-                    pass
-                temp += 1
-            print(updates)
-            print(new_values)
+    # 将窗口背景色设置为灰暗
+    palette.setColor(QPalette.Window, QColor(53, 53, 53))
 
-            newdata=[]
-            newdata.append(f"更新了以下数据：")
-            for i, update in enumerate(updates):
-                newdata.append(f"{data[update]} => {new_values[i]} ")
-            
-            model2 = QtGui.QStandardItemModel()
-            for item in newdata:
-                model2.appendRow(QtGui.QStandardItem(item))
-            self.replacelistView.setModel(model2)
+    # 将窗口文本颜色设置为浅色
+    palette.setColor(QPalette.WindowText, QColor(255, 255, 255))
 
-            # 遍历更新需要更新的单元格
-            for row, new_value in zip(updates, new_values):
-                item = model.item(row, 1)
-                item.setData(new_value, QtCore.Qt.EditRole) 
-        model3 = QtGui.QStandardItemModel()
-        self.replacelistView.setModel(model3)
-        self.replacelineEditonEdit = False
-        self.replacelineEdit.clear()
-        self.replacelineEdit.setPlaceholderText("请输入要替换的值")
+    # 背景色和文本颜色为灰暗和浅色
+    palette.setColor(QPalette.Button, QColor(53, 53, 53))
+    palette.setColor(QPalette.Base, QColor(53, 53, 53))
+    palette.setColor(QPalette.ButtonText, QColor(233, 233, 233))
+    palette.setColor(QPalette.Text, QColor(233, 233, 233))
+
+    # 禁用按钮的文本颜色为暗色
+    palette.setColor(QPalette.Disabled, QPalette.ButtonText, QColor(127, 127, 127))
+
+    # 将应用程序的调色板设置为新的调色板
+    app.setPalette(palette)
+
+
 if __name__ == '__main__':
+    # app = QApplication([])
+    # file_browser = FileBrowser()
+    # app.exec_()
+
+    # 设置 Fusion 样式
     app = QApplication([])
+    # darkmode()
+    # 创建文件浏览器
     file_browser = FileBrowser()
-    app.exec_()
+
+    # 运行应用程序事件循环
+    sys.exit(app.exec_())
