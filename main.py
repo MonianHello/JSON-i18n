@@ -1,13 +1,15 @@
 import os
 import json
-from PySide2.QtWidgets import QApplication, QFileSystemModel, QTreeView, QVBoxLayout, QMainWindow, QPushButton, QTextEdit, QFileDialog, QMessageBox, QTableView, QTableWidgetItem, QHeaderView,QApplication, QMainWindow, QVBoxLayout, QLineEdit,QTabWidget,QPlainTextEdit,QLabel,QSpinBox,QListView,QAction
+from PySide2.QtWidgets import QApplication, QFileSystemModel, QTreeView, QVBoxLayout, QMainWindow, QPushButton, QTextEdit, QFileDialog, QMessageBox, QTableView, QTableWidgetItem, QHeaderView,QApplication, QMainWindow, QVBoxLayout, QLineEdit,QTabWidget,QPlainTextEdit,QLabel,QSpinBox,QListView,QAction,QWidget,QDialog,QCheckBox,QFontComboBox
 from PySide2.QtUiTools import QUiLoader
 from PySide2.QtCore import QFile, Qt
 from PySide2 import QtCore, QtWidgets,QtGui
 from PySide2.QtGui import QStandardItem, QStandardItemModel,QIntValidator
 import sys
 from PySide2.QtGui import QPalette, QColor
-from PySide2.QtWidgets import QApplication
+from PySide2.QtGui import QFont
+
+from PySide2.QtWidgets import QApplication,QFontDialog
 from PySide2.QtWidgets import QMainWindow
 import configparser
 import requests
@@ -15,7 +17,37 @@ import uuid
 from bs4 import BeautifulSoup
 import sys
 import re
+def initFolder():
+    folder_path = "TranslateFiles"
+    # 检查目录是否存在
+    if not os.path.exists(folder_path):
+        # 如果不存在，则创建新目录
+        os.makedirs(folder_path)
+        print(f"创建 '{folder_path}' 文件夹成功！")
+    else:
+        print(f"文件夹 '{folder_path}' 已存在。")
+def initConfig(config_file='config.ini'):
 
+    global api_key,secret_key,enable_translate
+    # 判断配置文件是否存在，若不存在则新建配置文件并初始化
+    if not os.path.exists(config_file):
+        config = configparser.ConfigParser()
+        config['BAIDU_TRANSLATE_API'] = {'api_key': '',
+                                        'secret_key': '',
+                                        'enable': 'false'}
+        config['UI_FONT'] = {'font_family': '',
+                                        'font_size': ''}
+        with open(config_file, 'w', encoding='utf-8') as f:
+            config.write(f)
+
+    # 读取配置文件
+    config = configparser.ConfigParser()
+    config.read(config_file)
+    
+    # 获取百度翻译API的AK、SK和是否开启机翻
+    api_key = config.get('BAIDU_TRANSLATE_API', 'api_key')
+    secret_key = config.get('BAIDU_TRANSLATE_API', 'secret_key')
+    enable_translate = config.getboolean('BAIDU_TRANSLATE_API', 'enable')
 
 def add_unique_id_to_json(file_path):
     """
@@ -60,26 +92,6 @@ def add_unique_id_to_json(file_path):
 
     # 返回唯一标识符
     return unique_id
-# 配置文件路径
-config_file = 'config.ini'
-# 判断配置文件是否存在，若不存在则新建配置文件并初始化
-if not os.path.exists(config_file):
-    config = configparser.ConfigParser()
-    config['BAIDU_TRANSLATE_API'] = {'api_key': '',
-                                    'secret_key': '',
-                                    'enable': 'false'}
-    with open(config_file, 'w',encoding='utf-8') as f:
-        config.write(f)
-
-# 读取配置文件
-config = configparser.ConfigParser()
-config.read(config_file)
-
-# 获取百度翻译API的AK、SK和是否开启机翻
-api_key = config.get('BAIDU_TRANSLATE_API', 'api_key')
-secret_key = config.get('BAIDU_TRANSLATE_API', 'secret_key')
-enable_translate = config.getboolean('BAIDU_TRANSLATE_API', 'enable')
-
 def get_access_token(api_key, secret_key):
     url = "https://aip.baidubce.com/oauth/2.0/token"
     params = {
@@ -116,17 +128,8 @@ def translate_text(text, from_lang, to_lang, access_token):
 
 class FileBrowser(QMainWindow):
     def __init__(self):
-        folder_path = "TranslateFiles"
 
-        # 检查目录是否存在
-        if not os.path.exists(folder_path):
-            # 如果不存在，则创建新目录
-            os.makedirs(folder_path)
-            print(f"创建 '{folder_path}' 文件夹成功！")
-        else:
-            print(f"文件夹 '{folder_path}' 已存在。")
-
-        super().__init__()
+        super(FileBrowser, self).__init__()
         self.row = 0
         self.replacelineEditonEdit = False
         
@@ -158,10 +161,11 @@ class FileBrowser(QMainWindow):
         self.replacelineEdit = self.window.findChild(QLineEdit,'replacelineEdit')
         self.replacelistView = self.window.findChild(QListView,'replacelistView')
         self.actionClearSpaces = self.window.findChild(QAction, 'actionClearSpaces')
-
+        self.actionSettings = self.window.findChild(QAction, 'actionSettings')
 
         #QAction
         self.actionClearSpaces.triggered.connect(self.handleActionClearSpaces)
+        self.actionSettings.triggered.connect(self.handleActionSettings)
 
         #禁止用户编辑replacelistView
         self.replacelistView.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
@@ -216,8 +220,15 @@ class FileBrowser(QMainWindow):
 
         # 在 __init__ 函数中连接 clicked 信号到响应函数
         self.replacelistView.clicked.connect(self.handle_replacelistView_cell_clicked)
-    
+    def handleActionSettings(self):
+        # 创建设置对话框
+        settings_dialog = SettingsDialog(self)
+        settings_dialog.setWindowTitle("Settings")
+        
+        # 显示新窗口
+        settings_dialog.exec_()
     def handleActionClearSpaces(self):
+        self.tabWidget.setCurrentIndex(0)
         model = self.dict_table.model()
         # 遍历所有行
         for row in range(model.rowCount()):
@@ -716,7 +727,47 @@ class FileBrowser(QMainWindow):
             self.replacelineEdit.clear()
             self.replacelineEdit.setPlaceholderText("请输入替换后的值，留空以放弃操作")
             return 0
+class SettingsDialog(QDialog):
+    def __init__(self, parent=None):
+        super(SettingsDialog, self).__init__(parent)
+        
+        # 加载设置对话框UI文件
+        ui_file = QFile('Settings.ui')
+        ui_file.open(QFile.ReadOnly)
+        loader = QUiLoader()
+        self.settings_ui = loader.load(ui_file)
+        ui_file.close()
+        
+        # 将UI添加到对话框中
+        self.layout = QVBoxLayout(self)
+        self.layout.addWidget(self.settings_ui)
 
+        self.akLineEdit = self.settings_ui.findChild(QLineEdit, 'akLineEdit')
+        self.skLineEdit = self.settings_ui.findChild(QLineEdit, 'skLineEdit')
+        self.tranCheckBox = self.settings_ui.findChild(QCheckBox, 'tranCheckBox')
+        self.tranTestPushButton = self.settings_ui.findChild(QPushButton, 'tranTestPushButton')
+
+        self.fontSizeSpinBox = self.settings_ui.findChild(QSpinBox, 'fontSizeSpinBox')
+        self.fontComboBox = self.settings_ui.findChild(QFontComboBox, 'fontComboBox')
+        self.fontPreviewLabel = self.settings_ui.findChild(QLabel, 'fontPreviewLabel')
+
+        # 将前两个控件的值改变信号与相应的槽函数关联
+        self.fontComboBox.currentFontChanged.connect(self.changeFontFamily)
+        self.fontSizeSpinBox.valueChanged.connect(self.changeFontSize)
+
+    def changeFontFamily(self, font):
+        # 更改字体类型，更新字体预览标签
+        font_size = self.fontSizeSpinBox.value()
+        font = QFont(font.family(), font_size)
+        self.fontPreviewLabel.setFont(font)
+        print(font)
+
+    def changeFontSize(self, font_size):
+        # 更改字体大小，更新字体预览标签
+        font_family = self.fontComboBox.currentFont().family()
+        font = QFont(font_family, int(font_size))
+        self.fontPreviewLabel.setFont(font)
+        print(font_size)
 def darkmode():
     app.setStyle('Fusion')
     
@@ -742,17 +793,12 @@ def darkmode():
     # 将应用程序的调色板设置为新的调色板
     app.setPalette(palette)
 
-
 if __name__ == '__main__':
-    # app = QApplication([])
-    # file_browser = FileBrowser()
-    # app.exec_()
-
-    # 设置 Fusion 样式
+    initFolder()
+    initConfig()
     app = QApplication([])
     # darkmode()
     # 创建文件浏览器
     file_browser = FileBrowser()
-
     # 运行应用程序事件循环
     sys.exit(app.exec_())

@@ -145,7 +145,7 @@
            <item>
             <widget class="QPushButton" name="reviewPreviousPushButton">
              <property name="text">
-              <string>Previous</string>
+              <string>上一个</string>
              </property>
             </widget>
            </item>
@@ -173,6 +173,9 @@
              <property name="alignment">
               <set>Qt::AlignCenter</set>
              </property>
+             <property name="placeholderText">
+              <string>跳转至</string>
+             </property>
             </widget>
            </item>
            <item>
@@ -191,7 +194,7 @@
            <item>
             <widget class="QPushButton" name="reviewNextPushButton">
              <property name="text">
-              <string>Next</string>
+              <string>下一个</string>
              </property>
             </widget>
            </item>
@@ -320,14 +323,13 @@
    </property>
    <widget class="QMenu" name="menu12">
     <property name="title">
-     <string>文件</string>
+     <string>选项</string>
     </property>
-    <addaction name="actionopen"/>
-    <addaction name="actionsave"/>
+    <addaction name="actionSettings"/>
    </widget>
    <widget class="QMenu" name="menu">
     <property name="title">
-     <string>关于</string>
+     <string/>
     </property>
    </widget>
    <widget class="QMenu" name="menu_2">
@@ -359,6 +361,11 @@
   <action name="actionClearSpaces">
    <property name="text">
     <string>一键清空空格</string>
+   </property>
+  </action>
+  <action name="actionSettings">
+   <property name="text">
+    <string>首选项</string>
    </property>
   </action>
  </widget>
