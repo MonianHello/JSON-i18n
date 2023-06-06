@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>600</width>
-    <height>400</height>
+    <height>350</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -22,13 +22,7 @@
   <property name="minimumSize">
    <size>
     <width>600</width>
-    <height>400</height>
-   </size>
-  </property>
-  <property name="maximumSize">
-   <size>
-    <width>600</width>
-    <height>400</height>
+    <height>350</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -37,155 +31,208 @@
   <property name="modal">
    <bool>true</bool>
   </property>
-  <widget class="QGroupBox" name="groupBox">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>10</y>
-     <width>391</width>
-     <height>151</height>
-    </rect>
-   </property>
-   <property name="sizePolicy">
-    <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-     <horstretch>0</horstretch>
-     <verstretch>0</verstretch>
-    </sizepolicy>
-   </property>
-   <property name="toolTip">
-    <string/>
-   </property>
-   <property name="whatsThis">
-    <string/>
-   </property>
-   <property name="title">
-    <string>翻译配置</string>
-   </property>
-   <layout class="QGridLayout" name="gridLayout">
-    <item row="1" column="0">
-     <widget class="QCheckBox" name="tranCheckBox">
-      <property name="text">
-       <string>是否启用翻译功能</string>
-      </property>
-     </widget>
-    </item>
-    <item row="1" column="1">
-     <widget class="QPushButton" name="tranTestPushButton">
-      <property name="cursor">
-       <cursorShape>ArrowCursor</cursorShape>
-      </property>
-      <property name="text">
-       <string>翻译功能测试</string>
-      </property>
-      <property name="checkable">
-       <bool>false</bool>
-      </property>
-      <property name="default">
-       <bool>false</bool>
-      </property>
-      <property name="flat">
-       <bool>false</bool>
-      </property>
-     </widget>
-    </item>
-    <item row="0" column="0" colspan="2">
-     <layout class="QHBoxLayout" name="horizontalLayout">
-      <item>
-       <layout class="QVBoxLayout" name="verticalLayout_2">
-        <item>
-         <widget class="QLabel" name="label">
-          <property name="text">
-           <string>API Key</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLabel" name="label_2">
-          <property name="text">
-           <string>Secret Key</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </item>
-      <item>
-       <layout class="QVBoxLayout" name="verticalLayout">
-        <item>
-         <widget class="QLineEdit" name="akLineEdit"/>
-        </item>
-        <item>
-         <widget class="QLineEdit" name="skLineEdit">
-          <property name="mouseTracking">
-           <bool>false</bool>
-          </property>
-          <property name="echoMode">
-           <enum>QLineEdit::Normal</enum>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </item>
-     </layout>
-    </item>
-   </layout>
-  </widget>
-  <widget class="QGroupBox" name="groupBox_2">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>180</y>
-     <width>391</width>
-     <height>201</height>
-    </rect>
-   </property>
-   <property name="title">
-    <string>UI配置（重启后生效）</string>
-   </property>
-   <layout class="QGridLayout" name="gridLayout_4">
-    <item row="1" column="0" colspan="2">
-     <layout class="QGridLayout" name="gridLayout_3">
-      <item row="0" column="1">
-       <widget class="QSpinBox" name="fontSizeSpinBox">
-        <property name="minimum">
-         <number>9</number>
-        </property>
-        <property name="maximum">
-         <number>72</number>
+  <layout class="QGridLayout" name="gridLayout_2">
+   <item row="0" column="0">
+    <widget class="QGroupBox" name="groupBox">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="toolTip">
+      <string/>
+     </property>
+     <property name="whatsThis">
+      <string/>
+     </property>
+     <property name="title">
+      <string>翻译设置</string>
+     </property>
+     <layout class="QGridLayout" name="gridLayout">
+      <item row="1" column="0">
+       <widget class="QCheckBox" name="tranCheckBox">
+        <property name="text">
+         <string>是否启用翻译功能</string>
         </property>
        </widget>
       </item>
-      <item row="0" column="0">
-       <widget class="QFontComboBox" name="fontComboBox"/>
+      <item row="1" column="1">
+       <widget class="QPushButton" name="tranTestPushButton">
+        <property name="cursor">
+         <cursorShape>ArrowCursor</cursorShape>
+        </property>
+        <property name="text">
+         <string>翻译功能测试</string>
+        </property>
+        <property name="checkable">
+         <bool>false</bool>
+        </property>
+        <property name="default">
+         <bool>false</bool>
+        </property>
+        <property name="flat">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0" colspan="2">
+       <layout class="QHBoxLayout" name="horizontalLayout">
+        <item>
+         <layout class="QVBoxLayout" name="verticalLayout_2">
+          <item>
+           <widget class="QLabel" name="label">
+            <property name="text">
+             <string>API Key</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="label_2">
+            <property name="text">
+             <string>Secret Key</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <layout class="QVBoxLayout" name="verticalLayout">
+          <item>
+           <widget class="QLineEdit" name="akLineEdit"/>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="skLineEdit">
+            <property name="mouseTracking">
+             <bool>false</bool>
+            </property>
+            <property name="echoMode">
+             <enum>QLineEdit::Normal</enum>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
       </item>
      </layout>
-    </item>
-    <item row="2" column="0" colspan="2">
-     <widget class="QLabel" name="fontPreviewLabel">
-      <property name="text">
-       <string>我的世界 Minecraft</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignCenter</set>
-      </property>
-     </widget>
-    </item>
-    <item row="0" column="0">
-     <widget class="QCheckBox" name="checkBox">
-      <property name="text">
-       <string>退出程序时保存调整的布局</string>
-      </property>
-     </widget>
-    </item>
-    <item row="0" column="1">
-     <widget class="QCheckBox" name="checkBox_2">
-      <property name="text">
-       <string>深色模式</string>
-      </property>
-     </widget>
-    </item>
-   </layout>
-  </widget>
+    </widget>
+   </item>
+   <item row="0" column="1">
+    <widget class="QGroupBox" name="groupBox_3">
+     <property name="title">
+      <string>系统设置</string>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout_3">
+      <item>
+       <widget class="QCheckBox" name="darkModeCheckBox">
+        <property name="text">
+         <string>深色模式</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="autoSaveLayoutCheckBox">
+        <property name="text">
+         <string>自动保存布局</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="moveWorkFolderPushButton">
+        <property name="text">
+         <string>修改工作目录</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item row="1" column="0">
+    <widget class="QGroupBox" name="groupBox_2">
+     <property name="title">
+      <string>字体设置</string>
+     </property>
+     <layout class="QGridLayout" name="gridLayout_4">
+      <item row="1" column="0" colspan="2">
+       <widget class="QLabel" name="fontPreviewLabel">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>60</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>我的世界 Minecraft</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0" colspan="2">
+       <layout class="QGridLayout" name="gridLayout_3">
+        <item row="0" column="1">
+         <widget class="QSpinBox" name="fontSizeSpinBox">
+          <property name="minimum">
+           <number>9</number>
+          </property>
+          <property name="maximum">
+           <number>72</number>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0">
+         <widget class="QFontComboBox" name="fontComboBox"/>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item row="1" column="1">
+    <layout class="QHBoxLayout" name="horizontalLayout_2">
+     <item>
+      <widget class="QPushButton" name="savePushButton">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>保存</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="cancelPushButton">
+       <property name="text">
+        <string>取消</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
  </widget>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>cancelPushButton</sender>
+   <signal>clicked()</signal>
+   <receiver>Dialog</receiver>
+   <slot>close()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>553</x>
+     <y>274</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>590</x>
+     <y>315</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>

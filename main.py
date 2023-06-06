@@ -1,4 +1,5 @@
 import os
+import base64
 import json
 from PySide2.QtWidgets import QApplication, QFileSystemModel, QTreeView, QVBoxLayout, QMainWindow, QPushButton, QTextEdit, QFileDialog, QMessageBox, QTableView, QTableWidgetItem, QHeaderView,QApplication, QMainWindow, QVBoxLayout, QLineEdit,QTabWidget,QPlainTextEdit,QLabel,QSpinBox,QListView,QAction,QWidget,QDialog,QCheckBox,QFontComboBox
 from PySide2.QtUiTools import QUiLoader
@@ -26,28 +27,42 @@ def initFolder():
         print(f"创建 '{folder_path}' 文件夹成功！")
     else:
         print(f"文件夹 '{folder_path}' 已存在。")
-def initConfig(config_file='config.ini'):
-
-    global api_key,secret_key,enable_translate
+def initConfig():
+    global config
+    # global api_key,secret_key,enable_translate,ui_font_Family,ui_font_Size,dirname
     # 判断配置文件是否存在，若不存在则新建配置文件并初始化
-    if not os.path.exists(config_file):
+    if not os.path.exists('config.ini'):
         config = configparser.ConfigParser()
         config['BAIDU_TRANSLATE_API'] = {'api_key': '',
                                         'secret_key': '',
                                         'enable': 'false'}
-        config['UI_FONT'] = {'font_family': '',
-                                        'font_size': ''}
-        with open(config_file, 'w', encoding='utf-8') as f:
+        config['UI_FONT'] = {'ui_font_Family': 'U2ltU3Vu',
+                             'ui_font_Size': '9'}
+        config['SYSTEM_SETTINGS'] = {'dirname': '',
+                                     'dark_mode':'false',
+                                     'auto_save_layout':'true',
+                                     'layout':''}
+        with open('config.ini', 'w', encoding='utf-8') as f:
             config.write(f)
 
     # 读取配置文件
     config = configparser.ConfigParser()
-    config.read(config_file)
+    with open('config.ini', 'r', encoding='utf-8') as f:
+        config.read_file(f)
     
     # 获取百度翻译API的AK、SK和是否开启机翻
-    api_key = config.get('BAIDU_TRANSLATE_API', 'api_key')
-    secret_key = config.get('BAIDU_TRANSLATE_API', 'secret_key')
-    enable_translate = config.getboolean('BAIDU_TRANSLATE_API', 'enable')
+    try:
+        api_key = config.get('BAIDU_TRANSLATE_API', 'api_key')
+        secret_key = config.get('BAIDU_TRANSLATE_API', 'secret_key')
+        enable_translate = config.getboolean('BAIDU_TRANSLATE_API', 'enable')
+        ui_font_Family = config.get('UI_FONT', 'ui_font_Family')
+        ui_font_Size = config.get('UI_FONT', 'ui_font_Size')
+        dirname = config.get('SYSTEM_SETTINGS', 'dirname')
+    except:
+        QMessageBox.information(None, "错误", "配置文件出现错误，已重置为初始值")
+        if os.path.exists("config.ini"):
+            os.remove("config.ini")
+        initConfig()
 
 def add_unique_id_to_json(file_path):
     """
@@ -140,6 +155,21 @@ class FileBrowser(QMainWindow):
         self.window = loader.load(ui_file)
         ui_file.close()
 
+        # 从配置文件中读取字体信息
+        font_family = base64.b64decode(config.get('UI_FONT', 'ui_font_Family')).decode('utf-8')
+        font_size = config.getint('UI_FONT', 'ui_font_Size')
+
+        # 应用保存在配置文件中的字体
+        ui_font = QFont(font_family, font_size)
+        app.setFont(ui_font)
+
+        # 加载UI文件
+        ui_file = QFile('MainWindow.ui')
+        ui_file.open(QFile.ReadOnly)
+        loader = QUiLoader()
+        self.window = loader.load(ui_file)
+        ui_file.close() 
+
         self.tree_view = self.window.findChild(QTreeView, 'treeView')
         self.printbutton = self.window.findChild(QPushButton, 'printButton')
         self.savebutton = self.window.findChild(QPushButton, 'saveButton')
@@ -178,14 +208,13 @@ class FileBrowser(QMainWindow):
         self.reviewJumpPageLineEdit.returnPressed.connect(self.on_reviewJumpPageLineEdit_return_pressed)
 
         # 创建文件浏览器模型
-        desktop_path = os.path.join(os.path.expanduser('~'), 'Desktop')
         self.model = QtWidgets.QFileSystemModel()
-        self.model.setRootPath(desktop_path)
+        self.model.setRootPath(config.get('SYSTEM_SETTINGS', 'dirname'))
         self.model.setFilter(QtCore.QDir.NoDotAndDotDot | QtCore.QDir.AllEntries)
         # 将模型设置为 QTreeView 的模型
         self.tree_view.setModel(self.model)
         # 设置根索引为桌面文件夹的索引
-        root_index = self.model.index(desktop_path)
+        root_index = self.model.index(config.get('SYSTEM_SETTINGS', 'dirname'))
         self.tree_view.setRootIndex(root_index)
         
         self.tabWidget.currentChanged.connect(self.tabChanged)
@@ -541,7 +570,7 @@ class FileBrowser(QMainWindow):
             QMessageBox.warning(self, '错误', '不是 JSON 文件！')
             return
 
-        if not enable_translate:
+        if not config.getboolean('BAIDU_TRANSLATE_API', 'enable'):
             QMessageBox.warning(self, '错误', '配置文件中未启用翻译功能')
             return
 
@@ -568,7 +597,7 @@ class FileBrowser(QMainWindow):
                 continue
             value = str(values[i])
             try:
-                access_token = get_access_token(api_key, secret_key)
+                access_token = get_access_token(config.get('BAIDU_TRANSLATE_API', 'api_key'), config.get('BAIDU_TRANSLATE_API', 'secret_key'))
             except:
                 QMessageBox.warning(self, '鉴权错误', '无法通过鉴权认证。请检查您提供的百度AK/SK是否正确并具有访问该服务的权限')
             translates.append(translate_text(str(value), from_lang, to_lang, access_token))
@@ -742,6 +771,7 @@ class SettingsDialog(QDialog):
         self.layout = QVBoxLayout(self)
         self.layout.addWidget(self.settings_ui)
 
+        # 初始化 UI 控件
         self.akLineEdit = self.settings_ui.findChild(QLineEdit, 'akLineEdit')
         self.skLineEdit = self.settings_ui.findChild(QLineEdit, 'skLineEdit')
         self.tranCheckBox = self.settings_ui.findChild(QCheckBox, 'tranCheckBox')
@@ -751,10 +781,77 @@ class SettingsDialog(QDialog):
         self.fontComboBox = self.settings_ui.findChild(QFontComboBox, 'fontComboBox')
         self.fontPreviewLabel = self.settings_ui.findChild(QLabel, 'fontPreviewLabel')
 
-        # 将前两个控件的值改变信号与相应的槽函数关联
+        self.darkModeCheckBox = self.settings_ui.findChild(QCheckBox, 'darkModeCheckBox')
+        self.autoSaveLayoutCheckBox = self.settings_ui.findChild(QCheckBox, 'autoSaveLayoutCheckBox')
+        self.layoutButton = self.settings_ui.findChild(QPushButton, 'layoutButton')
+        self.savePushButton = self.settings_ui.findChild(QPushButton, 'savePushButton')
+        self.cancelPushButton = self.settings_ui.findChild(QPushButton, 'cancelPushButton')
+
+        # 在 UI 控件中显示当前设置
+        self.akLineEdit.setText(config.get('BAIDU_TRANSLATE_API', 'api_key'))
+        self.skLineEdit.setText(config.get('BAIDU_TRANSLATE_API', 'secret_key'))
+        self.tranCheckBox.setChecked(config.getboolean('BAIDU_TRANSLATE_API', 'enable'))
+
+        self.fontSizeSpinBox.setValue(config.getint('UI_FONT', 'ui_font_Size'))
+
+        self.fontComboBox.setCurrentFont(QFont(base64.b64decode(config.get('UI_FONT', 'ui_font_Family')).decode('utf-8')))
+        self.fontPreviewLabel.setFont(QFont(base64.b64decode(config.get('UI_FONT', 'ui_font_Family')).decode('utf-8'), config.getint('UI_FONT', 'ui_font_Size')))
+
+        self.darkModeCheckBox.setChecked(config.getboolean('SYSTEM_SETTINGS', 'dark_mode'))
+        self.autoSaveLayoutCheckBox.setChecked(config.getboolean('SYSTEM_SETTINGS', 'auto_save_layout'))
+
+        # 连接控件信号和槽函数
         self.fontComboBox.currentFontChanged.connect(self.changeFontFamily)
         self.fontSizeSpinBox.valueChanged.connect(self.changeFontSize)
+        self.darkModeCheckBox.clicked.connect(self.changeDarkMode)
+        self.autoSaveLayoutCheckBox.clicked.connect(self.changeAutoSaveLayout)
+        self.savePushButton.clicked.connect(self.saveSettings)
+        self.cancelPushButton.clicked.connect(self.close)
 
+    def changeFontFamily(self, font):
+        self.fontPreviewLabel.setFont(QFont(font.family(), self.fontSizeSpinBox.value()))
+
+    def changeFontSize(self, size):
+        self.fontPreviewLabel.setFont(QFont(self.fontComboBox.currentFont().family(), size))
+
+    def changeDarkMode(self):
+        if self.darkModeCheckBox.isChecked():
+            config.set('SYSTEM_SETTINGS', 'dark_mode', 'True')
+        else:
+            config.set('SYSTEM_SETTINGS', 'dark_mode', 'False')
+
+    def changeAutoSaveLayout(self):
+        if self.autoSaveLayoutCheckBox.isChecked():
+            config.set('SYSTEM_SETTINGS', 'auto_save_layout', 'True')
+        else:
+            config.set('SYSTEM_SETTINGS', 'auto_save_layout', 'False')
+
+    def saveSettings(self):
+        # 保存输入框和复选框的值到配置文件
+        config.set('BAIDU_TRANSLATE_API', 'api_key', self.akLineEdit.text())
+        config.set('BAIDU_TRANSLATE_API', 'secret_key', self.skLineEdit.text())
+        config.set('BAIDU_TRANSLATE_API', 'enable', str(self.tranCheckBox.isChecked()))
+
+        config.set('UI_FONT', 'ui_font_Family', base64.b64encode(str(self.fontComboBox.currentFont().family()).encode("utf-8")).decode('utf-8'))
+        config.set('UI_FONT', 'ui_font_Size', str(self.fontSizeSpinBox.value()))
+
+
+        try:
+            with open('config.ini', 'w') as f:
+                config.write(f)
+        except:
+            QMessageBox.warning(self, "警告", "保存失败")
+        else:
+            QMessageBox.information(self, "提示", "保存成功")
+            font_family = base64.b64decode(config.get('UI_FONT', 'ui_font_Family')).decode('utf-8')
+            font_size = config.getint('UI_FONT', 'ui_font_Size')
+
+            # 应用保存在配置文件中的字体
+            ui_font = QFont(font_family, font_size)
+            app.setFont(ui_font)
+
+            # 关闭设置对话框
+            self.close()
     def changeFontFamily(self, font):
         # 更改字体类型，更新字体预览标签
         font_size = self.fontSizeSpinBox.value()
@@ -794,9 +891,20 @@ def darkmode():
     app.setPalette(palette)
 
 if __name__ == '__main__':
-    initFolder()
-    initConfig()
     app = QApplication([])
+
+    initConfig()
+    initFolder()
+    dirname = None
+    if not config.get('SYSTEM_SETTINGS', 'dirname'):
+        dirname = QFileDialog.getExistingDirectory(None, "选择工作目录", "/", options=QFileDialog.Options()|QFileDialog.ShowDirsOnly)
+        if not dirname:
+            sys.exit()
+        config.set("SYSTEM_SETTINGS", "dirname",dirname)
+        with open("config.ini", 'w', encoding='utf-8') as f:
+            config.write(f)
+
+
     # darkmode()
     # 创建文件浏览器
     file_browser = FileBrowser()
