@@ -454,10 +454,10 @@ class FileBrowser(QMainWindow):
             # print('翻译文件存在')
             for row in range(model.rowCount()):
                 # 跳过第一列值为'MonianHelloTranslateUUID'的行
-                item = model.item(row, 0)
+                # item = model.item(row, 0)
                 # print(item.text())
-                if item and item.text() == 'MonianHelloTranslateUUID':
-                    continue
+                # if item and item.text() == 'MonianHelloTranslateUUID':
+                #     continue
                 # 交换第2、3列的值
                 index1 = model.index(row, 1)
                 index2 = model.index(row, 2)
@@ -901,8 +901,6 @@ class SettingsDialog(QDialog):
 
         config.set('UI_FONT', 'ui_font_Family', base64.b64encode(str(self.fontComboBox.currentFont().family()).encode("utf-8")).decode('utf-8'))
         config.set('UI_FONT', 'ui_font_Size', str(self.fontSizeSpinBox.value()))
-        
-        file_browser.updateRootIndex()
 
         try:
             with open('config.ini', 'w') as f:
@@ -911,6 +909,7 @@ class SettingsDialog(QDialog):
             QMessageBox.warning(self, "警告", "保存失败")
         else:
             QMessageBox.information(self, "提示", "保存成功")
+            file_browser.updateRootIndex()
             font_family = base64.b64decode(config.get('UI_FONT', 'ui_font_Family')).decode('utf-8')
             font_size = config.getint('UI_FONT', 'ui_font_Size')
             if config.getboolean('SYSTEM_SETTINGS', 'dark_mode'):
