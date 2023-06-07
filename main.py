@@ -1,7 +1,7 @@
 import os
 import base64
 import json
-from PySide2.QtWidgets import QApplication, QFileSystemModel, QTreeView, QVBoxLayout, QMainWindow, QPushButton, QTextEdit, QFileDialog, QMessageBox, QTableView, QTableWidgetItem, QHeaderView,QApplication, QMainWindow, QVBoxLayout, QLineEdit,QTabWidget,QPlainTextEdit,QLabel,QSpinBox,QListView,QAction,QWidget,QDialog,QCheckBox,QFontComboBox
+from PySide2.QtWidgets import QApplication, QFileSystemModel, QTreeView, QVBoxLayout, QMainWindow, QPushButton, QTextEdit, QFileDialog, QMessageBox, QTableView, QTableWidgetItem, QHeaderView,QApplication, QMainWindow, QVBoxLayout, QLineEdit,QTabWidget,QPlainTextEdit,QLabel,QSpinBox,QListView,QAction,QWidget,QDialog,QCheckBox,QFontComboBox,QProgressBar
 from PySide2.QtUiTools import QUiLoader
 from PySide2.QtCore import QFile, Qt
 from PySide2 import QtCore, QtWidgets,QtGui
@@ -9,6 +9,7 @@ from PySide2.QtGui import QStandardItem, QStandardItemModel,QIntValidator
 import sys
 from PySide2.QtGui import QPalette, QColor
 from PySide2.QtGui import QFont
+from PySide2.QtCore import QObject, QThread, Signal
 
 from PySide2.QtWidgets import QApplication,QFontDialog
 from PySide2.QtWidgets import QMainWindow
@@ -37,11 +38,11 @@ def initConfig():
         config['BAIDU_TRANSLATE_API'] = {'api_key': '',
                                         'secret_key': '',
                                         'enable': 'false'}
-        config['UI_FONT'] = {'ui_font_Family': 'U2ltU3Vu',
-                             'ui_font_Size': '9'}
+        config['UI_FONT'] = {'ui_font_Family': '5b6u6L2v6ZuF6buR',
+                             'ui_font_Size': '10'}
         config['SYSTEM_SETTINGS'] = {'dirname': '',
                                      'dark_mode':'false',
-                                     'auto_save_layout':'true',
+                                     'auto_save_layout':'false',
                                      'layout':''}
         with open('config.ini', 'w', encoding='utf-8') as f:
             config.write(f)
@@ -57,8 +58,11 @@ def initConfig():
         secret_key = config.get('BAIDU_TRANSLATE_API', 'secret_key')
         enable_translate = config.getboolean('BAIDU_TRANSLATE_API', 'enable')
         ui_font_Family = config.get('UI_FONT', 'ui_font_Family')
-        ui_font_Size = config.get('UI_FONT', 'ui_font_Size')
+        ui_font_Size = config.getint('UI_FONT', 'ui_font_Size')
         dirname = config.get('SYSTEM_SETTINGS', 'dirname')
+        dark_mode = config.getboolean('SYSTEM_SETTINGS', 'dark_mode')
+        auto_save_layout = config.getboolean('SYSTEM_SETTINGS', 'auto_save_layout')
+        layout = config.get('SYSTEM_SETTINGS', 'layout')
     except:
         QMessageBox.warning(None, "错误", "配置文件出现错误，已重置为初始值")
         if os.path.exists("config.ini"):
@@ -141,7 +145,67 @@ def translate_text(text, from_lang, to_lang, access_token):
         translated_text = ""
         print("由于未知原因，无法翻译文本\"{}\"。请参考以下错误信息：\n{}\n{}".format(text, response.json(), e))
     return translated_text
+class TranslatorThread(QThread):
+    finished = Signal()
+    progress = Signal(int)
+    error = Signal(str)
 
+    def __init__(self, file_path, from_lang, to_lang, api_key, secret_key):
+        super().__init__()
+        self.file_path = file_path
+        self.from_lang = from_lang
+        self.to_lang = to_lang
+        self.api_key = api_key
+        self.secret_key = secret_key
+
+    def run(self):
+        initFolder()
+        try:
+            access_token = get_access_token(self.api_key, self.secret_key)
+        except Exception as e:
+            self.error.emit(str(e))
+        else:
+            uuid = add_unique_id_to_json(self.file_path)
+            try:
+                # 如果已经有保存翻译结果的文件，则读取该文件，将其转为 Python 字典
+                with open('TranslateFiles/'+uuid+'.json', 'r', encoding='utf-8') as f:
+                    translated_dict = json.load(f)
+            except FileNotFoundError:
+                # 如果没有保存翻译结果的文件，则将 translated_dict 初始化为空字典
+                translated_dict = {}
+
+            with open(self.file_path, 'r', encoding='utf-8') as f:
+                content = json.load(f)
+
+                keys = []
+                values = []
+                for key, value in content.items():
+                    keys.append(key)
+                    values.append(value)
+
+                item_count = len(keys)
+                for i, key in enumerate(keys):
+                    # 如果 key 已经在字典中，则跳过本次循环
+                    if key in translated_dict:
+                        continue
+
+                    # 跳过特定 key
+                    if key == "MonianHelloTranslateUUID":
+                        continue
+
+                    value = str(values[i])
+                    translated_value = translate_text(str(value), self.from_lang, self.to_lang, access_token)
+
+                    # 添加新翻译到字典中
+                    translated_dict[key] = translated_value
+
+                    progress = (i+1) / item_count * 100
+                    self.progress.emit(progress)  # 更新进度条
+
+                    # 将字典实时保存到文件中
+                    with open('TranslateFiles/'+uuid+'.json', 'w', encoding='utf-8') as f:
+                        json.dump(translated_dict, f, indent=4)
+            self.finished.emit()
 class FileBrowser(QMainWindow):
     def __init__(self):
 
@@ -187,7 +251,9 @@ class FileBrowser(QMainWindow):
         self.actionClearSpaces = self.window.findChild(QAction, 'actionClearSpaces')
         self.actionSettings = self.window.findChild(QAction, 'actionSettings')
         self.actionAbout = self.window.findChild(QAction, 'actionAbout')
+        self.translateProgressBar = self.window.findChild(QProgressBar, 'translateProgressBar')
 
+        self.translateProgressBar.hide()
         #QAction
         self.actionClearSpaces.triggered.connect(self.handleActionClearSpaces)
         self.actionSettings.triggered.connect(self.handleActionSettings)
@@ -573,46 +639,26 @@ class FileBrowser(QMainWindow):
             QMessageBox.warning(self, '错误', '配置文件中未启用翻译功能')
             return
 
-        # 打开选中的 JSON 文件，并按 key:value 的形式显示其中的内容
-        with open(file_path, 'r', encoding='utf-8') as f:
-            file_content = f.read()
-            content = json.loads(file_content)
-            keys = []
-            values = []
-            for key, value in content.items():
-                keys.append(key)
-                values.append(value)
+        # 显示进度条
+        self.translateProgressBar.show()
 
-        # 准备翻译
-        translates = []
-        item_count = len(keys)
-        from_lang = "en"  # 源语言为英语
-        to_lang = "zh"  # 目标语言为中文
+        # 创建翻译线程，启动翻译
+        self.translator_thread = TranslatorThread(file_path, "en", "zh", config.get('BAIDU_TRANSLATE_API', 'api_key'), config.get('BAIDU_TRANSLATE_API', 'secret_key'))
+        self.translator_thread.finished.connect(self.on_translation_finished)
+        self.translator_thread.progress.connect(self.translateProgressBar.setValue)
+        self.translator_thread.error.connect(self.on_translation_failed)
+        self.translator_thread.start()
 
-        # 翻译每个条目，并保存到新的字典中
-        try:
-            access_token = get_access_token(config.get('BAIDU_TRANSLATE_API', 'api_key'), config.get('BAIDU_TRANSLATE_API', 'secret_key'))
-        except:
-            QMessageBox.warning(self, '鉴权错误', '无法通过鉴权认证。请检查您提供的百度AK/SK是否正确并具有访问该服务的权限')
-        else:
-            for i, key in enumerate(keys):
-                if key == "MonianHelloTranslateUUID":
-                    del content[key]
-                    continue
-                value = str(values[i])
-                translates.append(translate_text(str(value), from_lang, to_lang, access_token))
-                progress = (i + 1) / item_count * 100
-                print(f'翻译进度：{progress:.2f}%')  # 更新进度条
-        print("完成")
-        translated_dict = dict(zip(keys, translates))
-
-        # 将翻译结果保存到新的 JSON 文件中
-        uuid = add_unique_id_to_json(file_path)
-        with open('TranslateFiles/'+uuid+'.json', 'w', encoding='utf-8') as f:
-            json.dump(translated_dict, f, indent=4)
-        
+    def on_translation_finished(self):
+        # 隐藏进度条，恢复用户界面
+        self.translateProgressBar.hide()
+        # 刷新树形视图和属性视图
         self.on_printbutton_clicked()
-
+    def on_translation_failed(self, error_msg):
+        # 隐藏进度条，恢复用户界面
+        self.translateProgressBar.hide()
+        # 弹出错误提示框
+        QMessageBox.warning(self, '翻译错误', f'翻译过程中发生错误：{error_msg}')
     def on_selectAllPushButton_clicked(self):
         # 获取视图绑定的模型
         model = self.replacelistView.model()
@@ -760,7 +806,11 @@ class FileBrowser(QMainWindow):
             return 0
     def handleActionAbout(self):
         QMessageBox.information(None, '关于', 
-'<font size="5" color="red"><b>MonianHello</b></font><br/><br/>demo 2023.06.07')
+'''<font size="4" color="red"><b>JSON-i18n</b></font><br/><br/>
+示例版本 2023.06.07<br/>
+作者:<a href="http://monianhello.top/">MonianHello</a><br/>
+QF-project<a href="https://github.com/QF-project">QF-project</a><br/>
+代码库:<a href="https://github.com/MonianHello/JSON-i18n">github.com/MonianHello/JSON-i18n</a>''')
 class SettingsDialog(QDialog):
     def __init__(self, parent=None):
         super(SettingsDialog, self).__init__(parent)
@@ -863,7 +913,10 @@ class SettingsDialog(QDialog):
             QMessageBox.information(self, "提示", "保存成功")
             font_family = base64.b64decode(config.get('UI_FONT', 'ui_font_Family')).decode('utf-8')
             font_size = config.getint('UI_FONT', 'ui_font_Size')
-
+            if config.getboolean('SYSTEM_SETTINGS', 'dark_mode'):
+                darkmode()
+            else:
+                lightmode()
             # 应用保存在配置文件中的字体
             ui_font = QFont(font_family, font_size)
             app.setFont(ui_font)
@@ -885,7 +938,6 @@ class SettingsDialog(QDialog):
         # print(font_size)
 def darkmode():
     app.setStyle('Fusion')
-    
 
     # 获取系统默认调色板
     palette = QPalette()
@@ -894,7 +946,7 @@ def darkmode():
     palette.setColor(QPalette.Window, QColor(53, 53, 53))
 
     # 将窗口文本颜色设置为浅色
-    palette.setColor(QPalette.WindowText, QColor(255, 255, 255))
+    palette.setColor(QPalette.WindowText, QColor(233, 233, 233))
 
     # 背景色和文本颜色为灰暗和浅色
     palette.setColor(QPalette.Button, QColor(53, 53, 53))
@@ -907,7 +959,29 @@ def darkmode():
 
     # 将应用程序的调色板设置为新的调色板
     app.setPalette(palette)
+def lightmode():
+    app.setStyle('Fusion')
 
+    # 获取系统默认调色板
+    palette = QPalette()
+
+    # 将窗口背景色设置为浅灰色
+    palette.setColor(QPalette.Window, QColor(240, 240, 240))
+
+    # 将窗口文本颜色设置为黑色
+    palette.setColor(QPalette.WindowText, QColor(0, 0, 0))
+
+    # 背景色和文本颜色为浅灰色和黑色
+    palette.setColor(QPalette.Button, QColor(255, 255, 255))
+    palette.setColor(QPalette.Base, QColor(255, 255, 255))
+    palette.setColor(QPalette.ButtonText, QColor(0, 0, 0))
+    palette.setColor(QPalette.Text, QColor(0, 0, 0))
+
+    # 禁用按钮的文本颜色为深灰色
+    palette.setColor(QPalette.Disabled, QPalette.ButtonText, QColor(127, 127, 127))
+
+    # 将应用程序的调色板设置为新的调色板
+    app.setPalette(palette)
 if __name__ == '__main__':
     app = QApplication([])
 
@@ -921,9 +995,10 @@ if __name__ == '__main__':
         config.set("SYSTEM_SETTINGS", "dirname",dirname)
         with open("config.ini", 'w', encoding='utf-8') as f:
             config.write(f)
-
-
-    # darkmode()
+    if config.getboolean('SYSTEM_SETTINGS', 'dark_mode'):
+        darkmode()
+    else:
+        lightmode()
     # 创建文件浏览器
     file_browser = FileBrowser()
     # 运行应用程序事件循环

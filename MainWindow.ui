@@ -93,13 +93,20 @@
          <string>浏览模式</string>
         </attribute>
         <layout class="QGridLayout" name="gridLayout_4">
-         <item row="0" column="0">
+         <item row="1" column="1">
           <widget class="QTableView" name="TableView">
            <property name="minimumSize">
             <size>
              <width>400</width>
              <height>0</height>
             </size>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QProgressBar" name="translateProgressBar">
+           <property name="value">
+            <number>0</number>
            </property>
           </widget>
          </item>
