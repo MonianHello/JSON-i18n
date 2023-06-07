@@ -39,7 +39,8 @@ def initConfig():
         config['SYSTEM_SETTINGS'] = {'dirname': '',
                                      'dark_mode':'false',
                                      'auto_save_layout':'false',
-                                     'layout':''}
+                                     'layout':'',
+                                     'case_sensitive':'false'}
         with open('config.ini', 'w', encoding='utf-8') as f:
             config.write(f)
 
@@ -56,9 +57,9 @@ def initConfig():
         ui_font_Family = config.get('UI_FONT', 'ui_font_Family')
         ui_font_Size = config.getint('UI_FONT', 'ui_font_Size')
         dirname = base64.b64decode(config.get('SYSTEM_SETTINGS', 'dirname')).decode('utf-8')
-        
         dark_mode = config.getboolean('SYSTEM_SETTINGS', 'dark_mode')
         auto_save_layout = config.getboolean('SYSTEM_SETTINGS', 'auto_save_layout')
+        case_sensitive = config.getboolean('SYSTEM_SETTINGS', 'case_sensitive')
         layout = config.get('SYSTEM_SETTINGS', 'layout')
     except:
         QMessageBox.warning(None, "错误", "配置文件出现错误，已重置为初始值")
@@ -352,8 +353,10 @@ class FileBrowser(QMainWindow):
             self.dict_table.clearSelection()
             return
         # 将该数字转换为整数
-        row_index = int(first_piece) - 1  # 从 0 开始计算行数
-
+        try:
+            row_index = int(first_piece) - 1  # 从 0 开始计算行数
+        except:
+            pass
         # 将焦点移动到 dict_table 中对应的行
         model = self.dict_table.model()
         if row_index >= 0 and row_index < model.rowCount():
@@ -730,16 +733,20 @@ class FileBrowser(QMainWindow):
                 temp = 0
 
                 for i in data:
-                    
-                    if self.oldString in i:
-                        updates.append(temp)
-                        # new_values.append("op")
-                        # print("在",i,"中发现",self.oldString)
-                        new_values.append(i.replace(self.oldString, newString))
+                    if config.getboolean('SYSTEM_SETTINGS', 'case_sensitive'):
+                        if self.oldString in i:
+                            updates.append(temp)
+                            new_values.append(i.replace(self.oldString, newString))
+                        else:
+                            pass
+                        temp += 1
                     else:
-                        # print("在",i,"中未发现",self.oldString)
-                        pass
-                    temp += 1
+                        if self.oldString.lower() in i.lower():
+                            updates.append(temp)
+                            new_values.append(i.replace(self.oldString, newString))
+                        else:
+                            pass
+                        temp += 1
                 # print(updates)
                 # print(new_values)
                 
@@ -794,11 +801,17 @@ class FileBrowser(QMainWindow):
             self.selectAllPushButton.show()
 
             for i in data:
-                if self.oldString in i:
-                    item = QtGui.QStandardItem(i)
-                    item.setCheckable(True)  # 设置复选框
-                    newdata2.append(item)
-            
+                if config.getboolean('SYSTEM_SETTINGS', 'case_sensitive'):
+                    if self.oldString in i:
+                        item = QtGui.QStandardItem(i)
+                        item.setCheckable(True)  # 设置复选框
+                        newdata2.append(item)
+                else:
+                    if self.oldString.lower() in i.lower():
+                        item = QtGui.QStandardItem(i)
+                        item.setCheckable(True)  # 设置复选框
+                        newdata2.append(item)
+                    
             model2 = QtGui.QStandardItemModel()
             for item in newdata2:
                 model2.appendRow(item)
@@ -843,6 +856,7 @@ class SettingsDialog(QDialog):
         self.fontPreviewLabel = self.settings_ui.findChild(QLabel, 'fontPreviewLabel')
 
         self.darkModeCheckBox = self.settings_ui.findChild(QCheckBox, 'darkModeCheckBox')
+        self.caseSensitiveCheckBox = self.settings_ui.findChild(QCheckBox, 'caseSensitiveCheckBox')
         self.autoSaveLayoutCheckBox = self.settings_ui.findChild(QCheckBox, 'autoSaveLayoutCheckBox')
         self.layoutButton = self.settings_ui.findChild(QPushButton, 'layoutButton')
         self.savePushButton = self.settings_ui.findChild(QPushButton, 'savePushButton')
@@ -853,6 +867,7 @@ class SettingsDialog(QDialog):
         self.akLineEdit.setText(config.get('BAIDU_TRANSLATE_API', 'api_key'))
         self.skLineEdit.setText(config.get('BAIDU_TRANSLATE_API', 'secret_key'))
         self.tranCheckBox.setChecked(config.getboolean('BAIDU_TRANSLATE_API', 'enable'))
+        
 
         self.fontSizeSpinBox.setValue(config.getint('UI_FONT', 'ui_font_Size'))
 
@@ -861,16 +876,22 @@ class SettingsDialog(QDialog):
 
         self.darkModeCheckBox.setChecked(config.getboolean('SYSTEM_SETTINGS', 'dark_mode'))
         self.autoSaveLayoutCheckBox.setChecked(config.getboolean('SYSTEM_SETTINGS', 'auto_save_layout'))
+        self.caseSensitiveCheckBox.setChecked(config.getboolean('SYSTEM_SETTINGS', 'case_sensitive'))
 
         # 连接控件信号和槽函数
         self.fontComboBox.currentFontChanged.connect(self.changeFontFamily)
         self.fontSizeSpinBox.valueChanged.connect(self.changeFontSize)
         self.darkModeCheckBox.clicked.connect(self.changeDarkMode)
+        self.caseSensitiveCheckBox.clicked.connect(self.changeCaseSensitive)
         self.autoSaveLayoutCheckBox.clicked.connect(self.changeAutoSaveLayout)
         self.savePushButton.clicked.connect(self.saveSettings)
         self.tranTestPushButton.clicked.connect(self.tranTest)
         self.moveWorkFolderPushButton.clicked.connect(self.moveWorkFolder)
         self.cancelPushButton.clicked.connect(self.close)
+
+        shortcutESC = QShortcut(QKeySequence('ESC'), self.cancelPushButton)
+        shortcutESC.activated.connect(self.close)
+        
     def moveWorkFolder(self):
         config.set('SYSTEM_SETTINGS', 'dirname', base64.b64encode(str(QFileDialog.getExistingDirectory(None, "选择工作目录", "/", options=QFileDialog.Options()|QFileDialog.ShowDirsOnly)).encode("utf-8")).decode('utf-8'))
     def tranTest(self):
@@ -891,7 +912,11 @@ class SettingsDialog(QDialog):
             config.set('SYSTEM_SETTINGS', 'dark_mode', 'True')
         else:
             config.set('SYSTEM_SETTINGS', 'dark_mode', 'False')
-
+    def changeCaseSensitive(self):
+        if self.caseSensitiveCheckBox.isChecked():
+            config.set('SYSTEM_SETTINGS', 'case_sensitive', 'True')
+        else:
+            config.set('SYSTEM_SETTINGS', 'case_sensitive', 'False')
     def changeAutoSaveLayout(self):
         if self.autoSaveLayoutCheckBox.isChecked():
             config.set('SYSTEM_SETTINGS', 'auto_save_layout', 'True')
@@ -906,7 +931,6 @@ class SettingsDialog(QDialog):
 
         config.set('UI_FONT', 'ui_font_Family', base64.b64encode(str(self.fontComboBox.currentFont().family()).encode("utf-8")).decode('utf-8'))
         config.set('UI_FONT', 'ui_font_Size', str(self.fontSizeSpinBox.value()))
-
         try:
             with open('config.ini', 'w') as f:
                 config.write(f)

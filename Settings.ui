@@ -132,6 +132,13 @@
        </widget>
       </item>
       <item>
+       <widget class="QCheckBox" name="caseSensitiveCheckBox">
+        <property name="text">
+         <string>搜索时大小写敏感</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QCheckBox" name="autoSaveLayoutCheckBox">
         <property name="enabled">
          <bool>false</bool>
