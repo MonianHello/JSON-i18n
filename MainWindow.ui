@@ -326,6 +326,7 @@
      <string>选项</string>
     </property>
     <addaction name="actionSettings"/>
+    <addaction name="actionAbout"/>
    </widget>
    <widget class="QMenu" name="menu">
     <property name="title">
@@ -366,6 +367,11 @@
   <action name="actionSettings">
    <property name="text">
     <string>首选项</string>
+   </property>
+  </action>
+  <action name="actionAbout">
+   <property name="text">
+    <string>关于</string>
    </property>
   </action>
  </widget>

@@ -24,9 +24,10 @@ def initFolder():
     if not os.path.exists(folder_path):
         # 如果不存在，则创建新目录
         os.makedirs(folder_path)
-        print(f"创建 '{folder_path}' 文件夹成功！")
+        # print(f"创建 '{folder_path}' 文件夹成功！")
     else:
-        print(f"文件夹 '{folder_path}' 已存在。")
+        pass
+        # print(f"文件夹 '{folder_path}' 已存在。")
 def initConfig():
     global config
     # global api_key,secret_key,enable_translate,ui_font_Family,ui_font_Size,dirname
@@ -59,7 +60,7 @@ def initConfig():
         ui_font_Size = config.get('UI_FONT', 'ui_font_Size')
         dirname = config.get('SYSTEM_SETTINGS', 'dirname')
     except:
-        QMessageBox.information(None, "错误", "配置文件出现错误，已重置为初始值")
+        QMessageBox.warning(None, "错误", "配置文件出现错误，已重置为初始值")
         if os.path.exists("config.ini"):
             os.remove("config.ini")
         initConfig()
@@ -163,13 +164,6 @@ class FileBrowser(QMainWindow):
         ui_font = QFont(font_family, font_size)
         app.setFont(ui_font)
 
-        # 加载UI文件
-        ui_file = QFile('MainWindow.ui')
-        ui_file.open(QFile.ReadOnly)
-        loader = QUiLoader()
-        self.window = loader.load(ui_file)
-        ui_file.close() 
-
         self.tree_view = self.window.findChild(QTreeView, 'treeView')
         self.printbutton = self.window.findChild(QPushButton, 'printButton')
         self.savebutton = self.window.findChild(QPushButton, 'saveButton')
@@ -192,10 +186,12 @@ class FileBrowser(QMainWindow):
         self.replacelistView = self.window.findChild(QListView,'replacelistView')
         self.actionClearSpaces = self.window.findChild(QAction, 'actionClearSpaces')
         self.actionSettings = self.window.findChild(QAction, 'actionSettings')
+        self.actionAbout = self.window.findChild(QAction, 'actionAbout')
 
         #QAction
         self.actionClearSpaces.triggered.connect(self.handleActionClearSpaces)
         self.actionSettings.triggered.connect(self.handleActionSettings)
+        self.actionAbout.triggered.connect(self.handleActionAbout)
 
         #禁止用户编辑replacelistView
         self.replacelistView.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
@@ -249,11 +245,13 @@ class FileBrowser(QMainWindow):
 
         # 在 __init__ 函数中连接 clicked 信号到响应函数
         self.replacelistView.clicked.connect(self.handle_replacelistView_cell_clicked)
+    def updateRootIndex(self):
+        # 更新文件浏览器的根索引
+        root_index = self.model.index(config.get('SYSTEM_SETTINGS', 'dirname'))
+        self.tree_view.setRootIndex(root_index)
     def handleActionSettings(self):
         # 创建设置对话框
         settings_dialog = SettingsDialog(self)
-        settings_dialog.setWindowTitle("Settings")
-        
         # 显示新窗口
         settings_dialog.exec_()
     def handleActionClearSpaces(self):
@@ -351,7 +349,7 @@ class FileBrowser(QMainWindow):
         return swapped_array 
     def on_searchLineEdit_return_pressed(self):
         searchResult= self.search_dictionary(self.searchLineEdit.text())
-        print(searchResult)
+        # print(searchResult)
         if searchResult:
             keys = []
             values = []
@@ -378,19 +376,20 @@ class FileBrowser(QMainWindow):
             self.searchTableView.setModel(model)
             model.setHeaderData(0, Qt.Horizontal, "")
     def on_copyButton_clicked(self):
+        self.tabWidget.setCurrentIndex(0)
         # 获取当前的模型
         model = self.dict_table.model()
         index = self.tree_view.currentIndex()
         file_path = self.get_file_path(index)
         uuid = add_unique_id_to_json(file_path)
-        print(uuid)
+        # print(uuid)
         TranslateFilespath = 'TranslateFiles/' + uuid + '.json'
         if os.path.exists(TranslateFilespath):
-            print('翻译文件存在')
+            # print('翻译文件存在')
             for row in range(model.rowCount()):
                 # 跳过第一列值为'MonianHelloTranslateUUID'的行
                 item = model.item(row, 0)
-                print(item.text())
+                # print(item.text())
                 if item and item.text() == 'MonianHelloTranslateUUID':
                     continue
                 # 交换第2、3列的值
@@ -415,13 +414,13 @@ class FileBrowser(QMainWindow):
         try:
             # 打开选中的 JSON 文件，并按 key:value 的形式显示其中的内容
             uuid = add_unique_id_to_json(file_path)
-            print(uuid)
+            # print(uuid)
             TranslateFilespath = 'TranslateFiles/' + uuid + '.json'
             if os.path.exists(TranslateFilespath):
-                print('翻译文件存在')
+                # print('翻译文件存在')
                 translationFileExists = True
             else:
-                print('翻译文件不存在')
+                # print('翻译文件不存在')
                 translationFileExists = False
             with open(file_path, 'r', encoding='utf-8') as f:
                 file_content = f.read()
@@ -506,7 +505,7 @@ class FileBrowser(QMainWindow):
             self.reviewLabel.setText("第{}个/共{}个".format(self.row+1,model.rowCount()))
             self.tabChanged(1)
     def handleHeaderClicked(self, logicalIndex):
-        print(f"Selected row: {logicalIndex}")
+        # print(f"Selected row: {logicalIndex}")
         if self.tabWidget.currentIndex() == 0:
             self.reviewLabel.setText("第{}个/共{}个".format(logicalIndex+1,self.dict_table.model().rowCount()))
             self.row = logicalIndex
@@ -538,7 +537,7 @@ class FileBrowser(QMainWindow):
                 return 0
     def tabChanged(self,index):
         
-        print(f"Selected tab index: {index}")
+        # print(f"Selected tab index: {index}")
         try:
             model = self.dict_table.model()
             assert 0<= self.row <=model.rowCount()
@@ -591,18 +590,19 @@ class FileBrowser(QMainWindow):
         to_lang = "zh"  # 目标语言为中文
 
         # 翻译每个条目，并保存到新的字典中
-        for i, key in enumerate(keys):
-            if key == "MonianHelloTranslateUUID":
-                del content[key]
-                continue
-            value = str(values[i])
-            try:
-                access_token = get_access_token(config.get('BAIDU_TRANSLATE_API', 'api_key'), config.get('BAIDU_TRANSLATE_API', 'secret_key'))
-            except:
-                QMessageBox.warning(self, '鉴权错误', '无法通过鉴权认证。请检查您提供的百度AK/SK是否正确并具有访问该服务的权限')
-            translates.append(translate_text(str(value), from_lang, to_lang, access_token))
-            progress = (i + 1) / item_count * 100
-            print(f'翻译进度：{progress:.2f}%')  # 更新进度条
+        try:
+            access_token = get_access_token(config.get('BAIDU_TRANSLATE_API', 'api_key'), config.get('BAIDU_TRANSLATE_API', 'secret_key'))
+        except:
+            QMessageBox.warning(self, '鉴权错误', '无法通过鉴权认证。请检查您提供的百度AK/SK是否正确并具有访问该服务的权限')
+        else:
+            for i, key in enumerate(keys):
+                if key == "MonianHelloTranslateUUID":
+                    del content[key]
+                    continue
+                value = str(values[i])
+                translates.append(translate_text(str(value), from_lang, to_lang, access_token))
+                progress = (i + 1) / item_count * 100
+                print(f'翻译进度：{progress:.2f}%')  # 更新进度条
         print("完成")
         translated_dict = dict(zip(keys, translates))
 
@@ -610,6 +610,8 @@ class FileBrowser(QMainWindow):
         uuid = add_unique_id_to_json(file_path)
         with open('TranslateFiles/'+uuid+'.json', 'w', encoding='utf-8') as f:
             json.dump(translated_dict, f, indent=4)
+        
+        self.on_printbutton_clicked()
 
     def on_selectAllPushButton_clicked(self):
         # 获取视图绑定的模型
@@ -636,7 +638,7 @@ class FileBrowser(QMainWindow):
     def on_replacelineEdit_return_pressed(self):
         if self.replacelineEditonEdit:
             newString = self.replacelineEdit.text()
-            print("读取到替换字符串：",newString)
+            # print("读取到替换字符串：",newString)
             if not newString:
                 self.replacelistView.model().removeRows(0, self.replacelistView.model().rowCount())
                 self.replacelineEditonEdit = False
@@ -696,7 +698,7 @@ class FileBrowser(QMainWindow):
                 newdata=[]
                 newdata.append(f"更新了以下数据：")
                 for i, update in enumerate(updates):
-                    newdata.append(f"{data[update]} => {new_values[i]} ")
+                    newdata.append(f"{data[update]} : {new_values[i]} ")
                 
                 model2 = QtGui.QStandardItemModel()
                 for item in newdata:
@@ -714,7 +716,7 @@ class FileBrowser(QMainWindow):
             self.replacelineEdit.setPlaceholderText("请输入要替换的值")
         else:
             self.oldString = self.replacelineEdit.text()
-            print("读取到被替换字符串：",self.oldString)
+            # print("读取到被替换字符串：",self.oldString)
             if not self.oldString:
                 self.replacelistView.model().removeRows(0, self.replacelistView.model().rowCount())
                 self.replacelineEditonEdit = False
@@ -756,6 +758,9 @@ class FileBrowser(QMainWindow):
             self.replacelineEdit.clear()
             self.replacelineEdit.setPlaceholderText("请输入替换后的值，留空以放弃操作")
             return 0
+    def handleActionAbout(self):
+        QMessageBox.information(None, '关于', 
+'<font size="5" color="red"><b>MonianHello</b></font><br/><br/>demo 2023.06.07')
 class SettingsDialog(QDialog):
     def __init__(self, parent=None):
         super(SettingsDialog, self).__init__(parent)
@@ -776,6 +781,7 @@ class SettingsDialog(QDialog):
         self.skLineEdit = self.settings_ui.findChild(QLineEdit, 'skLineEdit')
         self.tranCheckBox = self.settings_ui.findChild(QCheckBox, 'tranCheckBox')
         self.tranTestPushButton = self.settings_ui.findChild(QPushButton, 'tranTestPushButton')
+        self.moveWorkFolderPushButton = self.settings_ui.findChild(QPushButton, 'moveWorkFolderPushButton')
 
         self.fontSizeSpinBox = self.settings_ui.findChild(QSpinBox, 'fontSizeSpinBox')
         self.fontComboBox = self.settings_ui.findChild(QFontComboBox, 'fontComboBox')
@@ -786,6 +792,7 @@ class SettingsDialog(QDialog):
         self.layoutButton = self.settings_ui.findChild(QPushButton, 'layoutButton')
         self.savePushButton = self.settings_ui.findChild(QPushButton, 'savePushButton')
         self.cancelPushButton = self.settings_ui.findChild(QPushButton, 'cancelPushButton')
+        
 
         # 在 UI 控件中显示当前设置
         self.akLineEdit.setText(config.get('BAIDU_TRANSLATE_API', 'api_key'))
@@ -806,8 +813,18 @@ class SettingsDialog(QDialog):
         self.darkModeCheckBox.clicked.connect(self.changeDarkMode)
         self.autoSaveLayoutCheckBox.clicked.connect(self.changeAutoSaveLayout)
         self.savePushButton.clicked.connect(self.saveSettings)
+        self.tranTestPushButton.clicked.connect(self.tranTest)
+        self.moveWorkFolderPushButton.clicked.connect(self.moveWorkFolder)
         self.cancelPushButton.clicked.connect(self.close)
-
+    def moveWorkFolder(self):
+        config.set("SYSTEM_SETTINGS", "dirname",QFileDialog.getExistingDirectory(None, "选择工作目录", "/", options=QFileDialog.Options()|QFileDialog.ShowDirsOnly))
+    def tranTest(self):
+        try:
+           get_access_token(self.akLineEdit.text(), self.skLineEdit.text())
+        except:
+            QMessageBox.warning(self, '鉴权错误', '无法通过鉴权认证。请检查您提供的百度AK/SK是否正确并具有访问该服务的权限')
+        else:
+            QMessageBox.information(self, '鉴权成功', "验证成功")
     def changeFontFamily(self, font):
         self.fontPreviewLabel.setFont(QFont(font.family(), self.fontSizeSpinBox.value()))
 
@@ -834,7 +851,8 @@ class SettingsDialog(QDialog):
 
         config.set('UI_FONT', 'ui_font_Family', base64.b64encode(str(self.fontComboBox.currentFont().family()).encode("utf-8")).decode('utf-8'))
         config.set('UI_FONT', 'ui_font_Size', str(self.fontSizeSpinBox.value()))
-
+        
+        file_browser.updateRootIndex()
 
         try:
             with open('config.ini', 'w') as f:
@@ -857,14 +875,14 @@ class SettingsDialog(QDialog):
         font_size = self.fontSizeSpinBox.value()
         font = QFont(font.family(), font_size)
         self.fontPreviewLabel.setFont(font)
-        print(font)
+        # print(font)
 
     def changeFontSize(self, font_size):
         # 更改字体大小，更新字体预览标签
         font_family = self.fontComboBox.currentFont().family()
         font = QFont(font_family, int(font_size))
         self.fontPreviewLabel.setFont(font)
-        print(font_size)
+        # print(font_size)
 def darkmode():
     app.setStyle('Fusion')
     

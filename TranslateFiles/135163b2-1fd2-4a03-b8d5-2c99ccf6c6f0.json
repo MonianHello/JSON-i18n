@@ -1,0 +1,16 @@
+{
+    "item.bamboocombat.bamboo_spear": "\u7af9\u77db",
+    "item.bamboocombat.stone_bamboo_spear": "\u77f3\u7af9\u77db",
+    "item.bamboocombat.copper_bamboo_spear": "\u94dc\u7af9\u77db",
+    "item.bamboocombat.iron_bamboo_spear": "\u94c1\u7af9\u77db",
+    "item.bamboocombat.golden_bamboo_spear": "\u91d1\u7af9\u77db",
+    "item.bamboocombat.diamond_bamboo_spear": "\u91d1\u521a\u7af9\u77db",
+    "item.bamboocombat.netherite_bamboo_spear": "\u7d2b\u7802\u7af9\u77db",
+    "entity.bamboocombat.bamboo_spear": "\u7af9\u77db",
+    "entity.bamboocombat.stone_bamboo_spear": "\u77f3\u7af9\u77db",
+    "entity.bamboocombat.copper_bamboo_spear": "\u94dc\u7af9\u77db",
+    "entity.bamboocombat.iron_bamboo_spear": "\u94c1\u7af9\u77db",
+    "entity.bamboocombat.golden_bamboo_spear": "\u91d1\u7af9\u77db",
+    "entity.bamboocombat.diamond_bamboo_spear": "\u91d1\u521a\u7af9\u77db",
+    "entity.bamboocombat.netherite_bamboo_spear": "\u7d2b\u7802\u7af9\u77db"
+}
