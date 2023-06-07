@@ -1,24 +1,20 @@
 import os
 import base64
 import json
-from PySide2.QtWidgets import QApplication, QFileSystemModel, QTreeView, QVBoxLayout, QMainWindow, QPushButton, QTextEdit, QFileDialog, QMessageBox, QTableView, QTableWidgetItem, QHeaderView,QApplication, QMainWindow, QVBoxLayout, QLineEdit,QTabWidget,QPlainTextEdit,QLabel,QSpinBox,QListView,QAction,QWidget,QDialog,QCheckBox,QFontComboBox,QProgressBar
-from PySide2.QtUiTools import QUiLoader
-from PySide2.QtCore import QFile, Qt
-from PySide2 import QtCore, QtWidgets,QtGui
-from PySide2.QtGui import QStandardItem, QStandardItemModel,QIntValidator
 import sys
-from PySide2.QtGui import QPalette, QColor
-from PySide2.QtGui import QFont
-from PySide2.QtCore import QObject, QThread, Signal
-
-from PySide2.QtWidgets import QApplication,QFontDialog
-from PySide2.QtWidgets import QMainWindow
 import configparser
 import requests
 import uuid
 from bs4 import BeautifulSoup
-import sys
-import re
+
+from PySide2 import QtCore, QtWidgets,QtGui
+from PySide2.QtWidgets import QTreeView, QVBoxLayout, QMainWindow, QPushButton, QFileDialog, QMessageBox, QTableView, QTableWidgetItem, QHeaderView,QApplication, QVBoxLayout, QLineEdit,QTabWidget,QPlainTextEdit,QLabel,QSpinBox,QListView,QAction,QDialog,QCheckBox,QFontComboBox,QProgressBar,QShortcut
+from PySide2.QtGui import QKeySequence,QFont,QPalette, QColor,QStandardItem, QStandardItemModel,QIntValidator
+from PySide2.QtUiTools import QUiLoader
+from PySide2.QtCore import QThread, Signal,QFile, Qt
+
+
+
 def initFolder():
     folder_path = "TranslateFiles"
     # 检查目录是否存在
@@ -59,7 +55,8 @@ def initConfig():
         enable_translate = config.getboolean('BAIDU_TRANSLATE_API', 'enable')
         ui_font_Family = config.get('UI_FONT', 'ui_font_Family')
         ui_font_Size = config.getint('UI_FONT', 'ui_font_Size')
-        dirname = config.get('SYSTEM_SETTINGS', 'dirname')
+        dirname = base64.b64decode(config.get('SYSTEM_SETTINGS', 'dirname')).decode('utf-8')
+        
         dark_mode = config.getboolean('SYSTEM_SETTINGS', 'dark_mode')
         auto_save_layout = config.getboolean('SYSTEM_SETTINGS', 'auto_save_layout')
         layout = config.get('SYSTEM_SETTINGS', 'layout')
@@ -68,17 +65,7 @@ def initConfig():
         if os.path.exists("config.ini"):
             os.remove("config.ini")
         initConfig()
-
 def add_unique_id_to_json(file_path):
-    """
-    为 JSON 文件添加唯一标识符。
-
-    参数：
-    file_path (str)：JSON 文件路径。
-
-    返回值：
-    str：生成或已存在的唯一标识符。
-    """
 
     # 加载并解析 JSON 文件
     def parse_json_file(file_path):
@@ -143,7 +130,7 @@ def translate_text(text, from_lang, to_lang, access_token):
         translated_text = result["result"]["trans_result"][0]["dst"]
     except Exception as e:
         translated_text = ""
-        print("由于未知原因，无法翻译文本\"{}\"。请参考以下错误信息：\n{}\n{}".format(text, response.json(), e))
+        QMessageBox.warning(QMessageBox.warning, '翻译错误', "由于未知原因，无法翻译文本\"{}\"。请参考以下错误信息：\n{}\n{}".format(text, response.json(), e))
     return translated_text
 class TranslatorThread(QThread):
     finished = Signal()
@@ -252,6 +239,19 @@ class FileBrowser(QMainWindow):
         self.actionSettings = self.window.findChild(QAction, 'actionSettings')
         self.actionAbout = self.window.findChild(QAction, 'actionAbout')
         self.translateProgressBar = self.window.findChild(QProgressBar, 'translateProgressBar')
+        
+        #快捷键
+        
+        shortcutCtrl_F = QShortcut(QKeySequence('Ctrl+F'), self.searchLineEdit)
+        shortcutCtrl_F.activated.connect(self.handle_Ctrl_F_action)
+        shortcutCtrl_H = QShortcut(QKeySequence('Ctrl+H'), self.searchLineEdit)
+        shortcutCtrl_H.activated.connect(self.handle_Ctrl_H_action)
+        shortcutCtrl_Down = QShortcut(QKeySequence('Ctrl+Down'), self.replacelineEdit)
+        shortcutCtrl_Down.activated.connect(self.handle_Ctrl_Down_action)
+        shortcutCtrl_Up = QShortcut(QKeySequence('Ctrl+Up'), self.replacelineEdit)
+        shortcutCtrl_Up.activated.connect(self.handle_Ctrl_Up_action)
+        shortcutCtrl_A = QShortcut(QKeySequence('Ctrl+Shift+A'), self.selectAllPushButton)
+        shortcutCtrl_A.activated.connect(self.handle_Ctrl_A_action)
 
         self.translateProgressBar.hide()
         #QAction
@@ -271,12 +271,12 @@ class FileBrowser(QMainWindow):
 
         # 创建文件浏览器模型
         self.model = QtWidgets.QFileSystemModel()
-        self.model.setRootPath(config.get('SYSTEM_SETTINGS', 'dirname'))
+        self.model.setRootPath(base64.b64decode(config.get('SYSTEM_SETTINGS', 'dirname')).decode('utf-8'))
         self.model.setFilter(QtCore.QDir.NoDotAndDotDot | QtCore.QDir.AllEntries)
         # 将模型设置为 QTreeView 的模型
         self.tree_view.setModel(self.model)
         # 设置根索引为桌面文件夹的索引
-        root_index = self.model.index(config.get('SYSTEM_SETTINGS', 'dirname'))
+        root_index = self.model.index(base64.b64decode(config.get('SYSTEM_SETTINGS', 'dirname')).decode('utf-8'))
         self.tree_view.setRootIndex(root_index)
         
         self.tabWidget.currentChanged.connect(self.tabChanged)
@@ -311,9 +311,19 @@ class FileBrowser(QMainWindow):
 
         # 在 __init__ 函数中连接 clicked 信号到响应函数
         self.replacelistView.clicked.connect(self.handle_replacelistView_cell_clicked)
+    def handle_Ctrl_F_action(self):
+        self.searchLineEdit.setFocus()
+    def handle_Ctrl_H_action(self):
+        self.replacelineEdit.setFocus()
+    def handle_Ctrl_Down_action(self):
+        self.on_reviewNextPushButton_clicked()
+    def handle_Ctrl_A_action(self):
+        self.on_selectAllPushButton_clicked()
+    def handle_Ctrl_Up_action(self):
+        self.on_reviewPreviousPushButton_clicked()
     def updateRootIndex(self):
         # 更新文件浏览器的根索引
-        root_index = self.model.index(config.get('SYSTEM_SETTINGS', 'dirname'))
+        root_index = self.model.index(base64.b64decode(config.get('SYSTEM_SETTINGS', 'dirname')).decode('utf-8'))
         self.tree_view.setRootIndex(root_index)
     def handleActionSettings(self):
         # 创建设置对话框
@@ -331,7 +341,6 @@ class FileBrowser(QMainWindow):
             text = item.text().replace(' ', '')
             # 将新字符串设置回该实例中
             item.setText(text)
-
     def handle_replacelistView_cell_clicked(self, index):
         # 获取所单击单元格的值
         value = self.replacelistView.model().data(index)
@@ -349,7 +358,6 @@ class FileBrowser(QMainWindow):
         model = self.dict_table.model()
         if row_index >= 0 and row_index < model.rowCount():
             self.dict_table.selectRow(row_index)
-        
     def get_file_path(self, index):
         return self.model.filePath(index)
     def on_treeView_doubleClicked(self, index):
@@ -535,18 +543,17 @@ class FileBrowser(QMainWindow):
             key = model.index(row, 0).data()
             value = model.index(row, 1).data()
             data[key] = value
-
         # 将数据写入文件
         file_name = self.tree_view.selectedIndexes()[0].data()
         with open(file_name, 'w',encoding='utf-8') as f:
-            json.dump(data, f, indent=4)
+            json.dump(data, f, indent=4,ensure_ascii=False)
 
         # 显示保存成功消息框
         msg_box = QMessageBox(QMessageBox.Information, "提示信息", "文件保存成功！")
         msg_box.exec_()
     def on_reviewNextPushButton_clicked(self):
         model = self.dict_table.model()
-        
+        self.tabWidget.setCurrentIndex(1)
         if 0<=self.row and self.row<model.rowCount()-1:
             try:
             # 更新模型中的数据
@@ -559,7 +566,7 @@ class FileBrowser(QMainWindow):
             self.tabChanged(1)
     def on_reviewPreviousPushButton_clicked(self):
         model = self.dict_table.model()
-        
+        self.tabWidget.setCurrentIndex(1)
         if 0<self.row and  self.row<=model.rowCount():
             try:
             # 更新模型中的数据
@@ -619,8 +626,10 @@ class FileBrowser(QMainWindow):
             except:
                 return 0
         if index == 0:
+            
             try:
             # 更新模型中的数据
+                self.dict_table.selectRow(self.row)
                 model.setData(model.index(self.row, 0), self.originalReviewPlainTextEdit.toPlainText())
                 model.setData(model.index(self.row, 1), self.translateReviewPlainTextEdit.toPlainText())
             except:
@@ -648,7 +657,6 @@ class FileBrowser(QMainWindow):
         self.translator_thread.progress.connect(self.translateProgressBar.setValue)
         self.translator_thread.error.connect(self.on_translation_failed)
         self.translator_thread.start()
-
     def on_translation_finished(self):
         # 隐藏进度条，恢复用户界面
         self.translateProgressBar.hide()
@@ -666,9 +674,7 @@ class FileBrowser(QMainWindow):
         # 遍历模型中的所有项，并将其选中状态设置为Checked
         for i in range(model.rowCount()-1):
             item = model.item(i+1)
-            item.setCheckState(QtCore.Qt.Checked)
-
-        
+            item.setCheckState(QtCore.Qt.Checked)  
     def on_invertSelectionPushButton_clicked(self):
         # 获取视图绑定的模型
         model = self.replacelistView.model()
@@ -680,7 +686,6 @@ class FileBrowser(QMainWindow):
                 item.setCheckState(QtCore.Qt.Unchecked)
             else:
                 item.setCheckState(QtCore.Qt.Checked)
-
     def on_replacelineEdit_return_pressed(self):
         if self.replacelineEditonEdit:
             newString = self.replacelineEdit.text()
@@ -744,7 +749,7 @@ class FileBrowser(QMainWindow):
                 newdata=[]
                 newdata.append(f"更新了以下数据：")
                 for i, update in enumerate(updates):
-                    newdata.append(f"{data[update]} : {new_values[i]} ")
+                    newdata.append(f"{data[update]} → {new_values[i]} ")
                 
                 model2 = QtGui.QStandardItemModel()
                 for item in newdata:
@@ -806,11 +811,11 @@ class FileBrowser(QMainWindow):
             return 0
     def handleActionAbout(self):
         QMessageBox.information(None, '关于', 
-'''<font size="4" color="red"><b>JSON-i18n</b></font><br/><br/>
+'''<font size="4" color="red"><b>JSON-i18n</b></font><br/>
 示例版本 2023.06.07<br/>
-作者:<a href="http://monianhello.top/">MonianHello</a><br/>
-QF-project<a href="https://github.com/QF-project">QF-project</a><br/>
-代码库:<a href="https://github.com/MonianHello/JSON-i18n">github.com/MonianHello/JSON-i18n</a>''')
+作者 : <a href="http://monianhello.top/" style="color:gray">MonianHello</a><br/>
+QF-project : <a href="https://github.com/QF-project" style="color:gray">QF-project</a><br/>
+代码库 : <a href="https://github.com/MonianHello/JSON-i18n" style="color:gray">github.com/MonianHello/JSON-i18n</a>''')
 class SettingsDialog(QDialog):
     def __init__(self, parent=None):
         super(SettingsDialog, self).__init__(parent)
@@ -867,7 +872,7 @@ class SettingsDialog(QDialog):
         self.moveWorkFolderPushButton.clicked.connect(self.moveWorkFolder)
         self.cancelPushButton.clicked.connect(self.close)
     def moveWorkFolder(self):
-        config.set("SYSTEM_SETTINGS", "dirname",QFileDialog.getExistingDirectory(None, "选择工作目录", "/", options=QFileDialog.Options()|QFileDialog.ShowDirsOnly))
+        config.set('SYSTEM_SETTINGS', 'dirname', base64.b64encode(str(QFileDialog.getExistingDirectory(None, "选择工作目录", "/", options=QFileDialog.Options()|QFileDialog.ShowDirsOnly)).encode("utf-8")).decode('utf-8'))
     def tranTest(self):
         try:
            get_access_token(self.akLineEdit.text(), self.skLineEdit.text())
@@ -936,6 +941,10 @@ class SettingsDialog(QDialog):
         self.fontPreviewLabel.setFont(font)
         # print(font_size)
 def darkmode():
+    # 初始化应用程序
+    app = QApplication.instance()
+
+    # 设置 Fusion 风格
     app.setStyle('Fusion')
 
     # 获取系统默认调色板
@@ -943,18 +952,24 @@ def darkmode():
 
     # 将窗口背景色设置为灰暗
     palette.setColor(QPalette.Window, QColor(53, 53, 53))
+    palette.setColor(QPalette.WindowText, Qt.white)
 
-    # 将窗口文本颜色设置为浅色
-    palette.setColor(QPalette.WindowText, QColor(233, 233, 233))
-
-    # 背景色和文本颜色为灰暗和浅色
+    # 将禁用状态下的文本颜色设置为暗色
+   
+    # 将控件的背景颜色和文本颜色设置为灰暗和浅色
+    palette.setColor(QPalette.Base, QColor(25, 25, 25))
+    palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
+    palette.setColor(QPalette.ToolTipBase, QColor(53, 53, 53))
+    palette.setColor(QPalette.ToolTipText, Qt.white)
+    palette.setColor(QPalette.Text, Qt.white)
+    palette.setColor(QPalette.Disabled, QPalette.WindowText, QColor(127, 127, 127))
     palette.setColor(QPalette.Button, QColor(53, 53, 53))
-    palette.setColor(QPalette.Base, QColor(53, 53, 53))
-    palette.setColor(QPalette.ButtonText, QColor(233, 233, 233))
-    palette.setColor(QPalette.Text, QColor(233, 233, 233))
-
-    # 禁用按钮的文本颜色为暗色
+    palette.setColor(QPalette.ButtonText, Qt.white)
     palette.setColor(QPalette.Disabled, QPalette.ButtonText, QColor(127, 127, 127))
+
+    # 将滚动条的背景颜色和文本颜色设置为灰暗和浅色
+    palette.setColor(QPalette.Highlight, QColor(64, 64, 64).lighter())
+    palette.setColor(QPalette.HighlightedText, Qt.white)
 
     # 将应用程序的调色板设置为新的调色板
     app.setPalette(palette)
@@ -991,7 +1006,7 @@ if __name__ == '__main__':
         dirname = QFileDialog.getExistingDirectory(None, "选择工作目录", "/", options=QFileDialog.Options()|QFileDialog.ShowDirsOnly)
         if not dirname:
             sys.exit()
-        config.set("SYSTEM_SETTINGS", "dirname",dirname)
+        config.set('SYSTEM_SETTINGS', 'dirname', base64.b64encode(str(dirname).encode("utf-8")).decode('utf-8'))
         with open("config.ini", 'w', encoding='utf-8') as f:
             config.write(f)
     if config.getboolean('SYSTEM_SETTINGS', 'dark_mode'):

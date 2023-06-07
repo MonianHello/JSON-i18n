@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>JSON-i18n</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
@@ -36,6 +36,9 @@
             <height>0</height>
            </size>
           </property>
+          <attribute name="headerVisible">
+           <bool>false</bool>
+          </attribute>
          </widget>
         </item>
         <item>
