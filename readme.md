@@ -4,7 +4,7 @@ JSON文件快速本地化的翻译工具
 
 部分功能参考自[CFPATools/Minecraft-Mods-Translator: Mods Translator for Minecraft 1.16+ (github.com)](https://github.com/CFPATools/Minecraft-Mods-Translator)
 
-![image-20230608112735258](assets\image-20230608112735258.png)
+![image-20230608112735258](assets/image-20230608112735258.png)
 
 ### 主要功能：
 
@@ -41,23 +41,23 @@ JSON文件快速本地化的翻译工具
 
 测试成功后，可以点击左下角 `翻译文件`按钮，程序将自动对全文进行翻译。此时翻译并不会直接替换原文，需要用户进行进一步校对。如不需要，可以点击左下角 `复制机翻`按钮，一键替换译文与原文。完成后点击左下角 `保存文件`按钮即可保存更改。
 
-![image-20230608115821872](assets\image-20230608115821872.png)
+![image-20230608115821872](assets/image-20230608115821872.png)
 
 ##### 翻译接口领取步骤：
 
 1、登录百度账号，选择领取 `文本翻译-通用版`
 
-![image-20230608115139348](assets\image-20230608115139348.png)
+![image-20230608115139348](assets/image-20230608115139348.png)
 
 2、创建应用，接口选择 `文本翻译-通用版`，其他内容无要求
 
-![image-20230608115356481](assets\image-20230608115356481.png)
+![image-20230608115356481](assets/image-20230608115356481.png)
 
 3、复制ak与sk到程序中，测试成功后即可使用
 
-![image-20230608115533624](assets\image-20230608115533624.png)
+![image-20230608115533624](assets/image-20230608115533624.png)
 
-![image-20230608115621227](assets\image-20230608115621227.png)
+![image-20230608115621227](assets/image-20230608115621227.png)
 
 ### Todo:
 
