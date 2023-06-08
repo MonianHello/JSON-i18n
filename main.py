@@ -13,8 +13,6 @@ from PySide2.QtGui import QKeySequence,QFont,QPalette, QColor,QStandardItem, QSt
 from PySide2.QtUiTools import QUiLoader
 from PySide2.QtCore import QThread, Signal,QFile, Qt
 
-
-
 def initFolder():
     folder_path = "TranslateFiles"
     # 检查目录是否存在
@@ -194,6 +192,8 @@ class TranslatorThread(QThread):
                     with open('TranslateFiles/'+uuid+'.json', 'w', encoding='utf-8') as f:
                         json.dump(translated_dict, f, indent=4)
             self.finished.emit()
+
+
 class FileBrowser(QMainWindow):
     def __init__(self):
 
@@ -312,6 +312,8 @@ class FileBrowser(QMainWindow):
 
         # 在 __init__ 函数中连接 clicked 信号到响应函数
         self.replacelistView.clicked.connect(self.handle_replacelistView_cell_clicked)
+    
+
     def handle_Ctrl_F_action(self):
         self.searchLineEdit.setFocus()
     def handle_Ctrl_H_action(self):
