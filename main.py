@@ -827,7 +827,7 @@ class FileBrowser(QMainWindow):
     def handleActionAbout(self):
         QMessageBox.information(None, '关于', 
 '''<font size="4" color="red"><b>JSON-i18n</b></font><br/>
-示例版本 2023.06.07<br/>
+正式版本v1.0.1 2023.06.08<br/>
 作者 : <a href="http://monianhello.top/" style="color:gray">MonianHello</a><br/>
 QF-project : <a href="https://github.com/QF-project" style="color:gray">QF-project</a><br/>
 代码库 : <a href="https://github.com/MonianHello/JSON-i18n" style="color:gray">github.com/MonianHello/JSON-i18n</a>''')
