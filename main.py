@@ -146,6 +146,20 @@ class TranslatorThread(QThread):
 
     def run(self):
         initFolder()
+        #执行前保存一遍文件
+        FileBrowser.tabWidget.setCurrentIndex(0)
+        # 获取表格中的数据
+        model = FileBrowser.dict_table.model()
+        data = {}
+        for row in range(model.rowCount()):
+            key = model.index(row, 0).data()
+            value = model.index(row, 1).data()
+            data[key] = value
+        # 将数据写入文件
+        file_name = FileBrowser.tree_view.selectedIndexes()[0].data()
+        with open(file_name, 'w',encoding='utf-8') as f:
+            json.dump(data, f, indent=4,ensure_ascii=False)
+
         try:
             access_token = get_access_token(self.api_key, self.secret_key)
         except Exception as e:
@@ -743,9 +757,11 @@ class FileBrowser(QMainWindow):
                             pass
                         temp += 1
                     else:
+                        import re
                         if self.oldString.lower() in i.lower():
                             updates.append(temp)
-                            new_values.append(i.replace(self.oldString, newString))
+                            pattern = re.compile(re.escape(self.oldString), re.IGNORECASE)
+                            new_values.append(pattern.sub(lambda m: newString if m.group().lower() == self.oldString.lower() else m.group(), i))
                         else:
                             pass
                         temp += 1
@@ -827,7 +843,7 @@ class FileBrowser(QMainWindow):
     def handleActionAbout(self):
         QMessageBox.information(None, '关于', 
 '''<font size="4" color="red"><b>JSON-i18n</b></font><br/>
-正式版本v1.0.1 2023.06.08<br/>
+正式版本v1.0.2 2023.06.12<br/>
 作者 : <a href="http://monianhello.top/" style="color:gray">MonianHello</a><br/>
 QF-project : <a href="https://github.com/QF-project" style="color:gray">QF-project</a><br/>
 代码库 : <a href="https://github.com/MonianHello/JSON-i18n" style="color:gray">github.com/MonianHello/JSON-i18n</a>''')
