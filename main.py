@@ -188,7 +188,7 @@ class TranslatorThread(QThread):
                     # 添加新翻译到字典中
                     translated_dict[key] = translated_value
 
-                    progress = (i+2) / item_count * 100
+                    progress = (i+1) / item_count * 100
                     self.progress.emit(progress)  # 更新进度条
 
                     # 将字典实时保存到文件中
