@@ -147,18 +147,7 @@ class TranslatorThread(QThread):
     def run(self):
         initFolder()
         #执行前保存一遍文件
-        FileBrowser.tabWidget.setCurrentIndex(0)
-        # 获取表格中的数据
-        model = FileBrowser.dict_table.model()
-        data = {}
-        for row in range(model.rowCount()):
-            key = model.index(row, 0).data()
-            value = model.index(row, 1).data()
-            data[key] = value
-        # 将数据写入文件
-        file_name = FileBrowser.tree_view.selectedIndexes()[0].data()
-        with open(file_name, 'w',encoding='utf-8') as f:
-            json.dump(data, f, indent=4,ensure_ascii=False)
+        file_browser.on_savebutton_clicked()
 
         try:
             access_token = get_access_token(self.api_key, self.secret_key)
@@ -186,8 +175,8 @@ class TranslatorThread(QThread):
                 item_count = len(keys)
                 for i, key in enumerate(keys):
                     # 如果 key 已经在字典中，则跳过本次循环
-                    if key in translated_dict:
-                        continue
+                    # if key in translated_dict:
+                    #     continue
 
                     # 跳过特定 key
                     if key == "MonianHelloTranslateUUID":
@@ -199,7 +188,7 @@ class TranslatorThread(QThread):
                     # 添加新翻译到字典中
                     translated_dict[key] = translated_value
 
-                    progress = (i+1) / item_count * 100
+                    progress = (i+2) / item_count * 100
                     self.progress.emit(progress)  # 更新进度条
 
                     # 将字典实时保存到文件中
@@ -562,8 +551,9 @@ class FileBrowser(QMainWindow):
             key = model.index(row, 0).data()
             value = model.index(row, 1).data()
             data[key] = value
-        # 将数据写入文件
         file_name = self.tree_view.selectedIndexes()[0].data()
+        data["MonianHelloTranslateUUID"] = add_unique_id_to_json(file_name)
+        # 将数据写入文件
         with open(file_name, 'w',encoding='utf-8') as f:
             json.dump(data, f, indent=4,ensure_ascii=False)
 
