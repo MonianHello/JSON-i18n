@@ -17,12 +17,7 @@ def initFolder():
     folder_path = "TranslateFiles"
     # 检查目录是否存在
     if not os.path.exists(folder_path):
-        # 如果不存在，则创建新目录
         os.makedirs(folder_path)
-        # print(f"创建 '{folder_path}' 文件夹成功！")
-    else:
-        pass
-        # print(f"文件夹 '{folder_path}' 已存在。")
 def initConfig():
     global config
     # global api_key,secret_key,enable_translate,ui_font_Family,ui_font_Size,dirname
@@ -38,7 +33,8 @@ def initConfig():
                                      'dark_mode':'false',
                                      'auto_save_layout':'false',
                                      'layout':'',
-                                     'case_sensitive':'false'}
+                                     'case_sensitive':'false',
+                                     'ensure_ascii':'false'}
         with open('config.ini', 'w', encoding='utf-8') as f:
             config.write(f)
 
@@ -58,6 +54,7 @@ def initConfig():
         dark_mode = config.getboolean('SYSTEM_SETTINGS', 'dark_mode')
         auto_save_layout = config.getboolean('SYSTEM_SETTINGS', 'auto_save_layout')
         case_sensitive = config.getboolean('SYSTEM_SETTINGS', 'case_sensitive')
+        ensure_ascii = config.getboolean('SYSTEM_SETTINGS', 'ensure_ascii')
         layout = config.get('SYSTEM_SETTINGS', 'layout')
     except:
         QMessageBox.warning(None, "错误", "配置文件出现错误，已重置为初始值")
@@ -202,6 +199,7 @@ class FileBrowser(QMainWindow):
 
         super(FileBrowser, self).__init__()
         self.row = 0
+        self.file_name = ""
         self.replacelineEditonEdit = False
         
         # 加载UI文件
@@ -370,6 +368,11 @@ class FileBrowser(QMainWindow):
         return self.model.filePath(index)
     def on_treeView_doubleClicked(self, index):
         file_path = self.get_file_path(index)
+        # 判断是否为 JSON 文件
+        if not os.path.splitext(file_path)[1].lower() == '.json':
+            QMessageBox.warning(self, '错误', '不是 JSON 文件！')
+            return
+        self.file_name = self.tree_view.selectedIndexes()[0].data()
         if os.path.isfile(file_path):
             # 如果是文件则执行打印文件的回调函数
             self.on_printbutton_clicked()
@@ -488,11 +491,6 @@ class FileBrowser(QMainWindow):
         index = self.tree_view.currentIndex()
         file_path = self.get_file_path(index)
 
-        # 判断是否为 JSON 文件
-        if not os.path.splitext(file_path)[1].lower() == '.json':
-            QMessageBox.warning(self, '错误', '不是 JSON 文件！')
-            return
-
         try:
             # 打开选中的 JSON 文件，并按 key:value 的形式显示其中的内容
             uuid = add_unique_id_to_json(file_path)
@@ -551,14 +549,13 @@ class FileBrowser(QMainWindow):
             key = model.index(row, 0).data()
             value = model.index(row, 1).data()
             data[key] = value
-        file_name = self.tree_view.selectedIndexes()[0].data()
-        data["MonianHelloTranslateUUID"] = add_unique_id_to_json(file_name)
+        data["MonianHelloTranslateUUID"] = add_unique_id_to_json(self.file_name)
         # 将数据写入文件
-        with open(file_name, 'w',encoding='utf-8') as f:
-            json.dump(data, f, indent=4,ensure_ascii=False)
+        with open(self.file_name, 'w',encoding='utf-8') as f:
+            json.dump(data, f, indent=4,ensure_ascii=config.getboolean('SYSTEM_SETTINGS', 'ensure_ascii'))
 
         # 显示保存成功消息框
-        msg_box = QMessageBox(QMessageBox.Information, "提示信息", "文件保存成功！")
+        msg_box = QMessageBox(QMessageBox.Information, "提示信息", "文件{}保存成功！".format(self.file_name))
         msg_box.exec_()
     def on_reviewNextPushButton_clicked(self):
         model = self.dict_table.model()
@@ -863,6 +860,7 @@ class SettingsDialog(QDialog):
         self.fontComboBox = self.settings_ui.findChild(QFontComboBox, 'fontComboBox')
         self.fontPreviewLabel = self.settings_ui.findChild(QLabel, 'fontPreviewLabel')
 
+        self.unicodeCheckBox = self.settings_ui.findChild(QCheckBox, 'unicodeCheckBox')
         self.darkModeCheckBox = self.settings_ui.findChild(QCheckBox, 'darkModeCheckBox')
         self.caseSensitiveCheckBox = self.settings_ui.findChild(QCheckBox, 'caseSensitiveCheckBox')
         self.autoSaveLayoutCheckBox = self.settings_ui.findChild(QCheckBox, 'autoSaveLayoutCheckBox')
@@ -882,6 +880,7 @@ class SettingsDialog(QDialog):
         self.fontComboBox.setCurrentFont(QFont(base64.b64decode(config.get('UI_FONT', 'ui_font_Family')).decode('utf-8')))
         self.fontPreviewLabel.setFont(QFont(base64.b64decode(config.get('UI_FONT', 'ui_font_Family')).decode('utf-8'), config.getint('UI_FONT', 'ui_font_Size')))
 
+        self.unicodeCheckBox.setChecked(config.getboolean('SYSTEM_SETTINGS', 'ensure_ascii'))
         self.darkModeCheckBox.setChecked(config.getboolean('SYSTEM_SETTINGS', 'dark_mode'))
         self.autoSaveLayoutCheckBox.setChecked(config.getboolean('SYSTEM_SETTINGS', 'auto_save_layout'))
         self.caseSensitiveCheckBox.setChecked(config.getboolean('SYSTEM_SETTINGS', 'case_sensitive'))
@@ -889,6 +888,7 @@ class SettingsDialog(QDialog):
         # 连接控件信号和槽函数
         self.fontComboBox.currentFontChanged.connect(self.changeFontFamily)
         self.fontSizeSpinBox.valueChanged.connect(self.changeFontSize)
+        self.unicodeCheckBox.clicked.connect(self.changeUnicode)
         self.darkModeCheckBox.clicked.connect(self.changeDarkMode)
         self.caseSensitiveCheckBox.clicked.connect(self.changeCaseSensitive)
         self.autoSaveLayoutCheckBox.clicked.connect(self.changeAutoSaveLayout)
@@ -920,6 +920,11 @@ class SettingsDialog(QDialog):
             config.set('SYSTEM_SETTINGS', 'dark_mode', 'True')
         else:
             config.set('SYSTEM_SETTINGS', 'dark_mode', 'False')
+    def changeUnicode(self):
+        if self.unicodeCheckBox.isChecked():
+            config.set('SYSTEM_SETTINGS', 'ensure_ascii', 'True')
+        else:
+            config.set('SYSTEM_SETTINGS', 'ensure_ascii', 'False')
     def changeCaseSensitive(self):
         if self.caseSensitiveCheckBox.isChecked():
             config.set('SYSTEM_SETTINGS', 'case_sensitive', 'True')
