@@ -8,7 +8,7 @@ import uuid
 from bs4 import BeautifulSoup
 
 from PySide2 import QtCore, QtWidgets,QtGui
-from PySide2.QtWidgets import QTreeView, QVBoxLayout, QMainWindow, QPushButton, QFileDialog, QMessageBox, QTableView, QTableWidgetItem, QHeaderView,QApplication, QVBoxLayout, QLineEdit,QTabWidget,QPlainTextEdit,QLabel,QSpinBox,QListView,QAction,QDialog,QCheckBox,QFontComboBox,QProgressBar,QShortcut
+from PySide2.QtWidgets import QTreeView, QVBoxLayout, QMainWindow, QPushButton, QFileDialog, QMessageBox, QTableView, QTableWidgetItem, QHeaderView,QApplication, QVBoxLayout, QLineEdit,QTabWidget,QPlainTextEdit,QLabel,QSpinBox,QListView,QAction,QDialog,QCheckBox,QFontComboBox,QProgressBar,QShortcut,QSplitter
 from PySide2.QtGui import QKeySequence,QFont,QPalette, QColor,QStandardItem, QStandardItemModel,QIntValidator
 from PySide2.QtUiTools import QUiLoader
 from PySide2.QtCore import QThread, Signal,QFile, Qt
@@ -31,8 +31,8 @@ def initConfig():
                              'ui_font_Size': '10'}
         config['SYSTEM_SETTINGS'] = {'dirname': '',
                                      'dark_mode':'false',
-                                     'auto_save_layout':'false',
-                                     'layout':'',
+                                     'auto_apply_layout':'true',
+                                     'layout':{},
                                      'case_sensitive':'false',
                                      'ensure_ascii':'false'}
         with open('config.ini', 'w', encoding='utf-8') as f:
@@ -52,10 +52,10 @@ def initConfig():
         ui_font_Size = config.getint('UI_FONT', 'ui_font_Size')
         dirname = base64.b64decode(config.get('SYSTEM_SETTINGS', 'dirname')).decode('utf-8')
         dark_mode = config.getboolean('SYSTEM_SETTINGS', 'dark_mode')
-        auto_save_layout = config.getboolean('SYSTEM_SETTINGS', 'auto_save_layout')
+        auto_apply_layout = config.getboolean('SYSTEM_SETTINGS', 'auto_apply_layout')
         case_sensitive = config.getboolean('SYSTEM_SETTINGS', 'case_sensitive')
         ensure_ascii = config.getboolean('SYSTEM_SETTINGS', 'ensure_ascii')
-        layout = config.get('SYSTEM_SETTINGS', 'layout')
+        layout =json.loads(config.get('SYSTEM_SETTINGS', 'layout'))
     except:
         QMessageBox.warning(None, "错误", "配置文件出现错误，已重置为初始值")
         if os.path.exists("config.ini"):
@@ -240,8 +240,10 @@ class FileBrowser(QMainWindow):
         self.actionClearSpaces = self.window.findChild(QAction, 'actionClearSpaces')
         self.actionSettings = self.window.findChild(QAction, 'actionSettings')
         self.actionAbout = self.window.findChild(QAction, 'actionAbout')
+        self.actionSaveLayout = self.window.findChild(QAction, 'actionSaveLayout')
         self.translateProgressBar = self.window.findChild(QProgressBar, 'translateProgressBar')
-        
+        self.splitter = self.window.findChild(QSplitter, 'splitter')
+
         #快捷键
         
         shortcutCtrl_F = QShortcut(QKeySequence('Ctrl+F'), self.searchLineEdit)
@@ -260,6 +262,7 @@ class FileBrowser(QMainWindow):
         self.actionClearSpaces.triggered.connect(self.handleActionClearSpaces)
         self.actionSettings.triggered.connect(self.handleActionSettings)
         self.actionAbout.triggered.connect(self.handleActionAbout)
+        self.actionSaveLayout.triggered.connect(self.handleActionSaveLayout)
 
         #禁止用户编辑replacelistView
         self.replacelistView.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
@@ -313,11 +316,52 @@ class FileBrowser(QMainWindow):
 
         # 在 __init__ 函数中连接 clicked 信号到响应函数
         self.replacelistView.clicked.connect(self.handle_replacelistView_cell_clicked)
-    
+
+        #应用保存的UI配置信息
+        if config.getboolean('SYSTEM_SETTINGS', 'auto_apply_layout'):
+            try:
+                data = json.loads(config.get('SYSTEM_SETTINGS', 'layout'))
+                pos = tuple(data['pos'])
+                self.window.move(pos[0], pos[1])
+            except Exception as e:
+                print(e)
+            try:
+                size = tuple(data['size'])
+                self.window.resize(size[0], size[1])
+            except Exception as e:
+                print(e)
+            try:
+                if data['is_maximized']:
+                    self.window.showMaximized()
+            except Exception as e:
+                print(e)
+
+            # 读取和应用布局设置
+            try:
+                sizes_dict = json.loads(config.get('SYSTEM_SETTINGS', 'layout'))
+                left = sizes_dict.get('left')
+                middle = sizes_dict.get('middle')
+                right = sizes_dict.get('right')
+                sizes = [left, middle, right]
+                self.splitter.setSizes(sizes)
+            except Exception as e:
+                print(e)
+    def handleActionSaveLayout(self):
+        sizes_dict = {'left':self.splitter.sizes()[0], 'middle':self.splitter.sizes()[1], 'right':self.splitter.sizes()[2],'pos': [self.window.pos().x(), self.window.pos().y()],'size': [self.window.size().width(), self.window.size().height()],'is_maximized': self.window.isMaximized()}
+        print(sizes_dict)
+        config.set("SYSTEM_SETTINGS", "layout", json.dumps(sizes_dict))
+        try:
+            with open('config.ini', 'w') as f:
+                config.write(f)
+        except:
+            QMessageBox.warning(self, "警告", "保存失败")
+        else:
+            QMessageBox.information(self, "提示", "保存成功")
 
     def handle_Ctrl_F_action(self):
         self.searchLineEdit.setFocus()
     def handle_Ctrl_H_action(self):
+
         self.replacelineEdit.setFocus()
     def handle_Ctrl_Down_action(self):
         self.on_reviewNextPushButton_clicked()
@@ -830,7 +874,7 @@ class FileBrowser(QMainWindow):
     def handleActionAbout(self):
         QMessageBox.information(None, '关于', 
 '''<font size="4" color="red"><b>JSON-i18n</b></font><br/>
-正式版本v1.0.2 2023.06.12<br/>
+正式版本v1.0.4 2023.06.20<br/>
 作者 : <a href="http://monianhello.top/" style="color:gray">MonianHello</a><br/>
 QF-project : <a href="https://github.com/QF-project" style="color:gray">QF-project</a><br/>
 代码库 : <a href="https://github.com/MonianHello/JSON-i18n" style="color:gray">github.com/MonianHello/JSON-i18n</a>''')
@@ -863,7 +907,7 @@ class SettingsDialog(QDialog):
         self.unicodeCheckBox = self.settings_ui.findChild(QCheckBox, 'unicodeCheckBox')
         self.darkModeCheckBox = self.settings_ui.findChild(QCheckBox, 'darkModeCheckBox')
         self.caseSensitiveCheckBox = self.settings_ui.findChild(QCheckBox, 'caseSensitiveCheckBox')
-        self.autoSaveLayoutCheckBox = self.settings_ui.findChild(QCheckBox, 'autoSaveLayoutCheckBox')
+        self.autoApplyLayoutCheckBox = self.settings_ui.findChild(QCheckBox, 'autoApplyLayoutCheckBox')
         self.layoutButton = self.settings_ui.findChild(QPushButton, 'layoutButton')
         self.savePushButton = self.settings_ui.findChild(QPushButton, 'savePushButton')
         self.cancelPushButton = self.settings_ui.findChild(QPushButton, 'cancelPushButton')
@@ -882,7 +926,7 @@ class SettingsDialog(QDialog):
 
         self.unicodeCheckBox.setChecked(config.getboolean('SYSTEM_SETTINGS', 'ensure_ascii'))
         self.darkModeCheckBox.setChecked(config.getboolean('SYSTEM_SETTINGS', 'dark_mode'))
-        self.autoSaveLayoutCheckBox.setChecked(config.getboolean('SYSTEM_SETTINGS', 'auto_save_layout'))
+        self.autoApplyLayoutCheckBox.setChecked(config.getboolean('SYSTEM_SETTINGS', 'auto_apply_layout'))
         self.caseSensitiveCheckBox.setChecked(config.getboolean('SYSTEM_SETTINGS', 'case_sensitive'))
 
         # 连接控件信号和槽函数
@@ -891,7 +935,7 @@ class SettingsDialog(QDialog):
         self.unicodeCheckBox.clicked.connect(self.changeUnicode)
         self.darkModeCheckBox.clicked.connect(self.changeDarkMode)
         self.caseSensitiveCheckBox.clicked.connect(self.changeCaseSensitive)
-        self.autoSaveLayoutCheckBox.clicked.connect(self.changeAutoSaveLayout)
+        self.autoApplyLayoutCheckBox.clicked.connect(self.changeAutoSaveLayout)
         self.savePushButton.clicked.connect(self.saveSettings)
         self.tranTestPushButton.clicked.connect(self.tranTest)
         self.moveWorkFolderPushButton.clicked.connect(self.moveWorkFolder)
@@ -931,10 +975,10 @@ class SettingsDialog(QDialog):
         else:
             config.set('SYSTEM_SETTINGS', 'case_sensitive', 'False')
     def changeAutoSaveLayout(self):
-        if self.autoSaveLayoutCheckBox.isChecked():
-            config.set('SYSTEM_SETTINGS', 'auto_save_layout', 'True')
+        if self.autoApplyLayoutCheckBox.isChecked():
+            config.set('SYSTEM_SETTINGS', 'auto_apply_layout', 'True')
         else:
-            config.set('SYSTEM_SETTINGS', 'auto_save_layout', 'False')
+            config.set('SYSTEM_SETTINGS', 'auto_apply_layout', 'False')
 
     def saveSettings(self):
         # 保存输入框和复选框的值到配置文件

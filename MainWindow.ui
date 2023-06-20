@@ -337,6 +337,7 @@
     </property>
     <addaction name="actionSettings"/>
     <addaction name="actionAbout"/>
+    <addaction name="actionSaveLayout"/>
    </widget>
    <widget class="QMenu" name="menu">
     <property name="title">
@@ -382,6 +383,11 @@
   <action name="actionAbout">
    <property name="text">
     <string>关于</string>
+   </property>
+  </action>
+  <action name="actionSaveLayout">
+   <property name="text">
+    <string>保存布局</string>
    </property>
   </action>
  </widget>
