@@ -6,9 +6,9 @@ import configparser
 import requests
 import uuid
 from bs4 import BeautifulSoup
-
+import atexit
 from PySide2 import QtCore, QtWidgets,QtGui
-from PySide2.QtWidgets import QTreeView, QVBoxLayout, QMainWindow, QPushButton, QFileDialog, QMessageBox, QTableView, QTableWidgetItem, QHeaderView,QApplication, QVBoxLayout, QLineEdit,QTabWidget,QPlainTextEdit,QLabel,QSpinBox,QListView,QAction,QDialog,QCheckBox,QFontComboBox,QProgressBar,QShortcut,QSplitter
+from PySide2.QtWidgets import QTreeView, QVBoxLayout, QMainWindow, QPushButton, QFileDialog, QMessageBox, QTableView, QTableWidgetItem, QHeaderView,QApplication, QVBoxLayout, QLineEdit,QTabWidget,QPlainTextEdit,QLabel,QSpinBox,QListView,QAction,QDialog,QCheckBox,QFontComboBox,QProgressBar,QShortcut,QSplitter,QHBoxLayout
 from PySide2.QtGui import QKeySequence,QFont,QPalette, QColor,QStandardItem, QStandardItemModel,QIntValidator
 from PySide2.QtUiTools import QUiLoader
 from PySide2.QtCore import QThread, Signal,QFile, Qt
@@ -34,6 +34,8 @@ def initConfig():
                                      'auto_apply_layout':'true',
                                      'layout':{},
                                      'case_sensitive':'false',
+                                     'exit_dont_ask_again':'false',
+                                     'exit_save':'false',
                                      'ensure_ascii':'false'}
         with open('config.ini', 'w', encoding='utf-8') as f:
             config.write(f)
@@ -55,6 +57,8 @@ def initConfig():
         auto_apply_layout = config.getboolean('SYSTEM_SETTINGS', 'auto_apply_layout')
         case_sensitive = config.getboolean('SYSTEM_SETTINGS', 'case_sensitive')
         ensure_ascii = config.getboolean('SYSTEM_SETTINGS', 'ensure_ascii')
+        exit_dont_ask_again = config.getboolean('SYSTEM_SETTINGS', 'exit_dont_ask_again')
+        exit_save = config.getboolean('SYSTEM_SETTINGS', 'exit_save')
         layout =json.loads(config.get('SYSTEM_SETTINGS', 'layout'))
     except:
         QMessageBox.warning(None, "错误", "配置文件出现错误，已重置为初始值")
@@ -346,6 +350,58 @@ class FileBrowser(QMainWindow):
                 self.splitter.setSizes(sizes)
             except Exception as e:
                 print(e)
+    def onExit(self):
+        if config.getboolean('SYSTEM_SETTINGS', 'exit_dont_ask_again'):
+            if config.getboolean('SYSTEM_SETTINGS', 'exit_save'):
+                self.on_savebutton_clicked()
+                return
+            else:
+                return
+        msgBox = QMessageBox()
+        msgBox.setWindowTitle("退出")
+        msgBox.setText("是否将更改保存到文件     ")
+
+        # 添加QCheckBox控件，并设置靠右对齐
+        dont_ask_checkbox = QCheckBox("不再提示", msgBox)
+        # checkbox_style = """
+        #     QCheckBox::indicator {
+        #         subcontrol-position: left;
+        #         left:100%;
+        #     }
+        # """
+        # dont_ask_checkbox.setStyleSheet(checkbox_style)
+        # 创建一个水平布局管理器，并将QCheckBox添加到其中
+        layout = QHBoxLayout()
+        layout.addWidget(dont_ask_checkbox)
+
+        # 将布局管理器添加到QMessageBox中
+        box_layout = msgBox.layout()
+        box_layout.addLayout(layout, 1, 0, 1, box_layout.columnCount())
+
+        # 添加“保存”和“取消”按钮
+        save_button = msgBox.addButton("保存", QMessageBox.YesRole)
+        save_button.setObjectName("save_button")
+        cancel_button = msgBox.addButton("取消", QMessageBox.NoRole)
+        cancel_button.setObjectName("cancel_button")
+
+
+        # 执行QMessageBox并获取用户的选择
+        reply = msgBox.exec_()
+        if msgBox.clickedButton() == save_button:
+            self.on_savebutton_clicked()
+            if dont_ask_checkbox.isChecked():
+                config.set('SYSTEM_SETTINGS', 'exit_dont_ask_again', 'true')
+                config.set('SYSTEM_SETTINGS', 'exit_save', 'true')
+                with open("config.ini", 'w', encoding='utf-8') as f:
+                    config.write(f)
+        elif msgBox.clickedButton() == cancel_button:
+            if dont_ask_checkbox.isChecked():
+                config.set('SYSTEM_SETTINGS', 'exit_dont_ask_again', 'true')
+                config.set('SYSTEM_SETTINGS', 'exit_save', 'false')
+                with open("config.ini", 'w', encoding='utf-8') as f:
+                    config.write(f)
+        else:
+            return
     def handleActionSaveLayout(self):
         sizes_dict = {'left':self.splitter.sizes()[0], 'middle':self.splitter.sizes()[1], 'right':self.splitter.sizes()[2],'pos': [self.window.pos().x(), self.window.pos().y()],'size': [self.window.size().width(), self.window.size().height()],'is_maximized': self.window.isMaximized()}
         print(sizes_dict)
@@ -361,7 +417,6 @@ class FileBrowser(QMainWindow):
     def handle_Ctrl_F_action(self):
         self.searchLineEdit.setFocus()
     def handle_Ctrl_H_action(self):
-
         self.replacelineEdit.setFocus()
     def handle_Ctrl_Down_action(self):
         self.on_reviewNextPushButton_clicked()
@@ -874,7 +929,7 @@ class FileBrowser(QMainWindow):
     def handleActionAbout(self):
         QMessageBox.information(None, '关于', 
 '''<font size="4" color="red"><b>JSON-i18n</b></font><br/>
-正式版本v1.0.4 2023.06.20<br/>
+正式版本v1.0.5 2023.06.21<br/>
 作者 : <a href="http://monianhello.top/" style="color:gray">MonianHello</a><br/>
 QF-project : <a href="https://github.com/QF-project" style="color:gray">QF-project</a><br/>
 代码库 : <a href="https://github.com/MonianHello/JSON-i18n" style="color:gray">github.com/MonianHello/JSON-i18n</a>''')
@@ -1096,5 +1151,7 @@ if __name__ == '__main__':
         lightmode()
     # 创建文件浏览器
     file_browser = FileBrowser()
+    # 注册退出处理函数
+    atexit.register(file_browser.onExit)
     # 运行应用程序事件循环
     sys.exit(app.exec_())
