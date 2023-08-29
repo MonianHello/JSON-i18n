@@ -1,17 +1,20 @@
 import os
 import base64
+import subprocess
 import json
 import sys
 import configparser
 import requests
+import shutil
 import uuid
+import send2trash
 from bs4 import BeautifulSoup
 import atexit
 from PySide2 import QtCore, QtWidgets,QtGui
-from PySide2.QtWidgets import QTreeView, QVBoxLayout, QMainWindow, QPushButton, QFileDialog, QMessageBox, QTableView, QTableWidgetItem, QHeaderView,QApplication, QVBoxLayout, QLineEdit,QTabWidget,QPlainTextEdit,QLabel,QSpinBox,QListView,QAction,QDialog,QCheckBox,QFontComboBox,QProgressBar,QShortcut,QSplitter,QHBoxLayout
-from PySide2.QtGui import QKeySequence,QFont,QPalette, QColor,QStandardItem, QStandardItemModel,QIntValidator
+from PySide2.QtWidgets import QTreeView, QVBoxLayout, QMainWindow, QPushButton, QFileDialog, QMessageBox, QTableView, QTableWidgetItem, QHeaderView,QApplication, QVBoxLayout, QLineEdit,QTabWidget,QPlainTextEdit,QLabel,QSpinBox,QListView,QAction,QDialog,QCheckBox,QFontComboBox,QProgressBar,QShortcut,QSplitter,QHBoxLayout,QMenu,QInputDialog
+from PySide2.QtGui import QKeySequence,QFont,QPalette, QColor,QStandardItem, QStandardItemModel,QIntValidator,QDesktopServices
 from PySide2.QtUiTools import QUiLoader
-from PySide2.QtCore import QThread, Signal,QFile, Qt
+from PySide2.QtCore import QThread, Signal,QFile, Qt,QUrl
 
 def initFolder():
     folder_path = "TranslateFiles"
@@ -196,8 +199,6 @@ class TranslatorThread(QThread):
                     with open('TranslateFiles/'+uuid+'.json', 'w', encoding='utf-8') as f:
                         json.dump(translated_dict, f, indent=4)
             self.finished.emit()
-
-
 class FileBrowser(QMainWindow):
     def __init__(self):
 
@@ -312,6 +313,9 @@ class FileBrowser(QMainWindow):
         self.selectAllPushButton.hide()
         self.dict_table.verticalHeader().sectionClicked.connect(self.handleHeaderClicked)
 
+        self.tree_view.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.tree_view.customContextMenuRequested.connect(self.showContextMenu)
+
         # 显示窗口
         self.window.show()
 
@@ -350,6 +354,79 @@ class FileBrowser(QMainWindow):
                 self.splitter.setSizes(sizes)
             except Exception as e:
                 print(e)
+    def showContextMenu(self, pos):
+        index = self.tree_view.indexAt(pos)
+        if not index.isValid():
+            return
+
+        menu = QMenu(self)
+
+        open_action = QAction("在资源管理器中打开", self)
+        rename_action = QAction("重命名", self)
+        delete_action = QAction("移动到回收站", self)
+        copy_rename_action = QAction("复制并重命名", self)
+
+        menu.addAction(open_action)
+        menu.addAction(delete_action)
+        menu.addAction(copy_rename_action)
+        menu.addAction(rename_action)
+        # 连接动作的信号
+        open_action.triggered.connect(self.contextMenuOpenFileInExplorer)
+        rename_action.triggered.connect(self.contextMenuRenameFile)
+        delete_action.triggered.connect(self.contextMenuDeleteFile)
+        copy_rename_action.triggered.connect(self.contextMenuCopyAndRenameFile)
+
+        # 显示菜单
+        menu.exec_(self.tree_view.viewport().mapToGlobal(pos))
+
+    def contextMenuCopyAndRenameFile(self):
+        index = self.tree_view.currentIndex()
+        file_path = self.model.filePath(index).replace('/', '\\')
+
+        # 获取文件所在目录
+        directory = os.path.dirname(file_path)
+
+        # 设置默认的新文件名为 "zh_cn.json"
+        default_file_name = "zh_cn.json"
+
+        new_name, ok = QInputDialog.getText(self, "复制并重命名", "请输入新的文件名:", textEchoMode=QLineEdit.Normal, text=default_file_name)
+
+        if ok and new_name:
+            # 构建新的文件路径
+            new_file_path = os.path.join(directory, new_name)
+            try:
+                # 复制文件
+                shutil.copy2(file_path, new_file_path)
+
+                # 更新模型数据以反映新文件的添加
+                self.model.setRootPath(directory)
+            except OSError as e:
+                QMessageBox.warning(self, "复制并重命名失败", str(e))
+    def contextMenuOpenFileInExplorer(self):
+        index = self.tree_view.currentIndex()
+        file_path = (self.model.filePath(index)).replace('/', '\\')
+        subprocess.Popen('explorer /select,"{}"'.format(file_path), creationflags=subprocess.CREATE_NO_WINDOW)
+    def contextMenuRenameFile(self):
+        index = self.tree_view.currentIndex()
+        file_path = (self.model.filePath(index)).replace('/', '\\')
+
+        new_name, ok = QInputDialog.getText(self, "重命名", "请输入新的文件名:", textEchoMode=QLineEdit.Normal,text=os.path.basename(file_path))
+        if ok and new_name:
+            # 获取文件所在目录
+            directory = os.path.dirname(file_path)
+            # 构建新的文件路径
+            new_file_path = os.path.join(directory, new_name)
+            try:
+                os.rename(file_path, new_file_path)
+                # 更新模型数据以反映重命名
+                self.model.setRootPath(directory)
+            except OSError as e:
+                # 处理重命名失败的情况
+                QMessageBox.warning(self, "重命名失败", str(e))
+    def contextMenuDeleteFile(self):
+        index = self.tree_view.currentIndex()
+        file_path = (self.model.filePath(index)).replace('/', '\\')
+        send2trash.send2trash(file_path)
     def onExit(self):
         if config.getboolean('SYSTEM_SETTINGS', 'exit_dont_ask_again'):
             if config.getboolean('SYSTEM_SETTINGS', 'exit_save'):
@@ -413,7 +490,6 @@ class FileBrowser(QMainWindow):
             QMessageBox.warning(self, "警告", "保存失败")
         else:
             QMessageBox.information(self, "提示", "保存成功")
-
     def handle_Ctrl_F_action(self):
         self.searchLineEdit.setFocus()
     def handle_Ctrl_H_action(self):
@@ -929,7 +1005,7 @@ class FileBrowser(QMainWindow):
     def handleActionAbout(self):
         QMessageBox.information(None, '关于', 
 '''<font size="4" color="red"><b>JSON-i18n</b></font><br/>
-正式版本v1.0.5 2023.06.21<br/>
+正式版本v1.0.6 2023.08.30<br/>
 作者 : <a href="http://monianhello.top/" style="color:gray">MonianHello</a><br/>
 QF-project : <a href="https://github.com/QF-project" style="color:gray">QF-project</a><br/>
 代码库 : <a href="https://github.com/MonianHello/JSON-i18n" style="color:gray">github.com/MonianHello/JSON-i18n</a>''')
