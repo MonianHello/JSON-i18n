@@ -246,6 +246,7 @@ class FileBrowser(QMainWindow):
         self.actionSettings = self.window.findChild(QAction, 'actionSettings')
         self.actionAbout = self.window.findChild(QAction, 'actionAbout')
         self.actionSaveLayout = self.window.findChild(QAction, 'actionSaveLayout')
+        self.actionSaveAsSafeMode = self.window.findChild(QAction, 'actionSaveAsSafeMode')
         self.translateProgressBar = self.window.findChild(QProgressBar, 'translateProgressBar')
         self.splitter = self.window.findChild(QSplitter, 'splitter')
 
@@ -265,6 +266,7 @@ class FileBrowser(QMainWindow):
         self.translateProgressBar.hide()
         #QAction
         self.actionClearSpaces.triggered.connect(self.handleActionClearSpaces)
+        self.actionSaveAsSafeMode.triggered.connect(self.handleActionSaveAsSafeMode)
         self.actionSettings.triggered.connect(self.handleActionSettings)
         self.actionAbout.triggered.connect(self.handleActionAbout)
         self.actionSaveLayout.triggered.connect(self.handleActionSaveLayout)
@@ -520,6 +522,53 @@ class FileBrowser(QMainWindow):
             text = item.text().replace(' ', '')
             # 将新字符串设置回该实例中
             item.setText(text)
+    def handleActionSaveAsSafeMode(self):
+        # 创建保存错误的警告对话框
+        msg_box = QMessageBox()
+        msg_box.setIcon(QMessageBox.Warning)
+        msg_box.setWindowTitle("提示信息")
+        msg_box.setText("是否以安全模式保存？")
+        msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg_box.setDefaultButton(QMessageBox.No)
+
+        # 获取用户选项
+        user_choice = msg_box.exec_()
+
+        # 根据用户选项进行操作
+        if user_choice == QMessageBox.Yes:
+            import os
+            from PySide2.QtCore import QDateTime
+
+            # 获取当前时间
+            current_datetime = QDateTime.currentDateTime().toString("yy-MM-dd-hh-mm-ss")
+
+            # 构建保存文件路径
+            
+            safe_folder = "C:/SafeMode"  # 安全模式文件夹路径
+            os.makedirs(safe_folder, exist_ok=True)
+            file_name = f"{current_datetime}.json"  # 文件名，例如 13-13.json
+            save_path = os.path.join(safe_folder, file_name).replace('\\', '/')
+            self.tabWidget.setCurrentIndex(0)
+            # 获取表格中的数据
+            model = self.dict_table.model()
+            data = {}
+            for row in range(model.rowCount()):
+                key = model.index(row, 0).data()
+                value = model.index(row, 1).data()
+                data[key] = value
+
+            # 以安全模式保存文件
+            with open(save_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=4)
+
+            # 显示保存成功消息框
+            msg_box = QMessageBox()
+            msg_box.setIcon(QMessageBox.Information)
+            msg_box.setWindowTitle("提示信息")
+            msg_box.setText("文件已以安全模式保存至{}".format(save_path))
+            msg_box.exec_()
+        else:
+            pass
     def handle_replacelistView_cell_clicked(self, index):
         # 获取所单击单元格的值
         value = self.replacelistView.model().data(index)
@@ -725,16 +774,20 @@ class FileBrowser(QMainWindow):
             value = model.index(row, 1).data()
             data[key] = value
         try:
-            data["MonianHelloTranslateUUID"] = add_unique_id_to_json(self.file_name)
+            data["MonianHelloTranslateUUID"] = add_unique_id_to_json((os.path.join(base64.b64decode(config.get('SYSTEM_SETTINGS', 'dirname')).decode('utf-8'), self.file_name)).replace('\\', '/')
+)
         except:
             pass
         # 将数据写入文件
-        with open(self.file_name, 'w',encoding='utf-8') as f:
+        with open((os.path.join(base64.b64decode(config.get('SYSTEM_SETTINGS', 'dirname')).decode('utf-8'), self.file_name)).replace('\\', '/')
+, 'w',encoding='utf-8') as f:
             json.dump(data, f, indent=4,ensure_ascii=config.getboolean('SYSTEM_SETTINGS', 'ensure_ascii'))
 
         # 显示保存成功消息框
-        msg_box = QMessageBox(QMessageBox.Information, "提示信息", "文件{}保存成功！".format(self.file_name))
+        msg_box = QMessageBox(QMessageBox.Information, "提示信息", "文件已保存至 {}".format((os.path.join(base64.b64decode(config.get('SYSTEM_SETTINGS', 'dirname')).decode('utf-8'), self.file_name)).replace('\\', '/')
+))
         msg_box.exec_()
+
     def on_reviewNextPushButton_clicked(self):
         model = self.dict_table.model()
         self.tabWidget.setCurrentIndex(1)

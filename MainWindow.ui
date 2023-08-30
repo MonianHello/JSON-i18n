@@ -349,6 +349,7 @@
      <string>工具</string>
     </property>
     <addaction name="actionClearSpaces"/>
+    <addaction name="actionSaveAsSafeMode"/>
    </widget>
    <addaction name="menu12"/>
    <addaction name="menu_2"/>
@@ -388,6 +389,11 @@
   <action name="actionSaveLayout">
    <property name="text">
     <string>保存当前布局</string>
+   </property>
+  </action>
+  <action name="actionSaveAsSafeMode">
+   <property name="text">
+    <string>安全模式保存</string>
    </property>
   </action>
  </widget>
