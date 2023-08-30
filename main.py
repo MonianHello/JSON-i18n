@@ -724,7 +724,10 @@ class FileBrowser(QMainWindow):
             key = model.index(row, 0).data()
             value = model.index(row, 1).data()
             data[key] = value
-        data["MonianHelloTranslateUUID"] = add_unique_id_to_json(self.file_name)
+        try:
+            data["MonianHelloTranslateUUID"] = add_unique_id_to_json(self.file_name)
+        except:
+            pass
         # 将数据写入文件
         with open(self.file_name, 'w',encoding='utf-8') as f:
             json.dump(data, f, indent=4,ensure_ascii=config.getboolean('SYSTEM_SETTINGS', 'ensure_ascii'))
