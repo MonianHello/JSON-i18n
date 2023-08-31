@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
+ <author>MonianHello</author>
  <class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow">
   <property name="geometry">
@@ -12,6 +13,9 @@
   </property>
   <property name="windowTitle">
    <string>JSON-i18n</string>
+  </property>
+  <property name="statusTip">
+   <string>程序运行信息占位符</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">

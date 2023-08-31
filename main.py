@@ -11,7 +11,7 @@ import send2trash
 from bs4 import BeautifulSoup
 import atexit
 from PySide2 import QtCore, QtWidgets,QtGui
-from PySide2.QtWidgets import QTreeView, QVBoxLayout, QMainWindow, QPushButton, QFileDialog, QMessageBox, QTableView, QTableWidgetItem, QHeaderView,QApplication, QVBoxLayout, QLineEdit,QTabWidget,QPlainTextEdit,QLabel,QSpinBox,QListView,QAction,QDialog,QCheckBox,QFontComboBox,QProgressBar,QShortcut,QSplitter,QHBoxLayout,QMenu,QInputDialog
+from PySide2.QtWidgets import QTreeView, QVBoxLayout, QMainWindow, QPushButton, QFileDialog, QMessageBox, QTableView, QTableWidgetItem, QHeaderView,QApplication, QVBoxLayout, QLineEdit,QTabWidget,QPlainTextEdit,QLabel,QSpinBox,QListView,QAction,QDialog,QCheckBox,QFontComboBox,QProgressBar,QShortcut,QSplitter,QHBoxLayout,QMenu,QInputDialog,QStatusBar
 from PySide2.QtGui import QKeySequence,QFont,QPalette, QColor,QStandardItem, QStandardItemModel,QIntValidator,QDesktopServices
 from PySide2.QtUiTools import QUiLoader
 from PySide2.QtCore import QThread, Signal,QFile, Qt,QUrl
@@ -39,6 +39,7 @@ def initConfig():
                                      'case_sensitive':'false',
                                      'exit_dont_ask_again':'false',
                                      'exit_save':'false',
+                                     'rename':'zh_cn.json',
                                      'ensure_ascii':'false'}
         with open('config.ini', 'w', encoding='utf-8') as f:
             config.write(f)
@@ -62,7 +63,8 @@ def initConfig():
         ensure_ascii = config.getboolean('SYSTEM_SETTINGS', 'ensure_ascii')
         exit_dont_ask_again = config.getboolean('SYSTEM_SETTINGS', 'exit_dont_ask_again')
         exit_save = config.getboolean('SYSTEM_SETTINGS', 'exit_save')
-        layout =json.loads(config.get('SYSTEM_SETTINGS', 'layout'))
+        layout = json.loads(config.get('SYSTEM_SETTINGS', 'layout'))
+        rename = config.get('SYSTEM_SETTINGS', 'rename')
     except:
         QMessageBox.warning(None, "错误", "配置文件出现错误，已重置为初始值")
         if os.path.exists("config.ini"):
@@ -203,6 +205,7 @@ class FileBrowser(QMainWindow):
     def __init__(self):
 
         super(FileBrowser, self).__init__()
+
         self.row = 0
         self.file_name = ""
         self.replacelineEditonEdit = False
@@ -213,6 +216,13 @@ class FileBrowser(QMainWindow):
         loader = QUiLoader()
         self.window = loader.load(ui_file)
         ui_file.close()
+
+        # # 创建一个状态栏
+        # self.statusBar = QStatusBar()
+        # self.setStatusBar(self.statusBar)
+
+        # # 在状态栏上显示文本信息
+        # self.statusBar.showMessage("欢迎使用我的应用！")
 
         # 从配置文件中读取字体信息
         font_family = base64.b64decode(config.get('UI_FONT', 'ui_font_Family')).decode('utf-8')
@@ -384,13 +394,13 @@ class FileBrowser(QMainWindow):
     def contextMenuCopyAndRenameFile(self):
         index = self.tree_view.currentIndex()
         file_path = self.model.filePath(index).replace('/', '\\')
-
-        # 获取文件所在目录
         directory = os.path.dirname(file_path)
 
-        # 设置默认的新文件名为 "zh_cn.json"
-        default_file_name = "zh_cn.json"
-
+        default_file_name =config.get('SYSTEM_SETTINGS', 'rename')
+        # 提示用户保存当前内容
+        save_prompt = QMessageBox.question(self, "保存提示", "复制前是否保存当前内容？", QMessageBox.Yes | QMessageBox.No)
+        if save_prompt == QMessageBox.Yes:
+            self.on_savebutton_clicked()  # 调用保存功能
         new_name, ok = QInputDialog.getText(self, "复制并重命名", "请输入新的文件名:", textEchoMode=QLineEdit.Normal, text=default_file_name)
 
         if ok and new_name:
@@ -766,6 +776,10 @@ class FileBrowser(QMainWindow):
             self.text_edit.setPlainText(file_content) 
     def on_savebutton_clicked(self):
         self.tabWidget.setCurrentIndex(0)
+        # 获取当前的模型
+        model = self.dict_table.model()
+        index = self.tree_view.currentIndex()
+        file_path = self.get_file_path(index)
         # 获取表格中的数据
         model = self.dict_table.model()
         data = {}
@@ -774,18 +788,14 @@ class FileBrowser(QMainWindow):
             value = model.index(row, 1).data()
             data[key] = value
         try:
-            data["MonianHelloTranslateUUID"] = add_unique_id_to_json((os.path.join(base64.b64decode(config.get('SYSTEM_SETTINGS', 'dirname')).decode('utf-8'), self.file_name)).replace('\\', '/')
-)
+            data["MonianHelloTranslateUUID"] = add_unique_id_to_json(file_path)
         except:
             pass
         # 将数据写入文件
-        with open((os.path.join(base64.b64decode(config.get('SYSTEM_SETTINGS', 'dirname')).decode('utf-8'), self.file_name)).replace('\\', '/')
-, 'w',encoding='utf-8') as f:
+        with open(file_path, 'w',encoding='utf-8') as f:
             json.dump(data, f, indent=4,ensure_ascii=config.getboolean('SYSTEM_SETTINGS', 'ensure_ascii'))
-
         # 显示保存成功消息框
-        msg_box = QMessageBox(QMessageBox.Information, "提示信息", "文件已保存至 {}".format((os.path.join(base64.b64decode(config.get('SYSTEM_SETTINGS', 'dirname')).decode('utf-8'), self.file_name)).replace('\\', '/')
-))
+        msg_box = QMessageBox(QMessageBox.Information, "提示信息", "文件已保存至 {}".format(file_path))
         msg_box.exec_()
 
     def on_reviewNextPushButton_clicked(self):
@@ -1083,6 +1093,7 @@ class SettingsDialog(QDialog):
         # 初始化 UI 控件
         self.akLineEdit = self.settings_ui.findChild(QLineEdit, 'akLineEdit')
         self.skLineEdit = self.settings_ui.findChild(QLineEdit, 'skLineEdit')
+        self.renameLineEdit = self.settings_ui.findChild(QLineEdit, 'renameLineEdit')
         self.tranCheckBox = self.settings_ui.findChild(QCheckBox, 'tranCheckBox')
         self.tranTestPushButton = self.settings_ui.findChild(QPushButton, 'tranTestPushButton')
         self.moveWorkFolderPushButton = self.settings_ui.findChild(QPushButton, 'moveWorkFolderPushButton')
@@ -1103,6 +1114,7 @@ class SettingsDialog(QDialog):
         # 在 UI 控件中显示当前设置
         self.akLineEdit.setText(config.get('BAIDU_TRANSLATE_API', 'api_key'))
         self.skLineEdit.setText(config.get('BAIDU_TRANSLATE_API', 'secret_key'))
+        self.renameLineEdit.setText(config.get('SYSTEM_SETTINGS', 'rename'))
         self.tranCheckBox.setChecked(config.getboolean('BAIDU_TRANSLATE_API', 'enable'))
         
 
@@ -1171,6 +1183,7 @@ class SettingsDialog(QDialog):
         # 保存输入框和复选框的值到配置文件
         config.set('BAIDU_TRANSLATE_API', 'api_key', self.akLineEdit.text())
         config.set('BAIDU_TRANSLATE_API', 'secret_key', self.skLineEdit.text())
+        config.set('SYSTEM_SETTINGS', 'rename', self.renameLineEdit.text())
         config.set('BAIDU_TRANSLATE_API', 'enable', str(self.tranCheckBox.isChecked()))
 
         config.set('UI_FONT', 'ui_font_Family', base64.b64encode(str(self.fontComboBox.currentFont().family()).encode("utf-8")).decode('utf-8'))
